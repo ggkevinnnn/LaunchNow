@@ -3,9 +3,13 @@ Alternative Launchpad application for MacOS Tahoe.
 
 # Features
 create folders
+
 rearrange icons
+
 search apps
+
 support full keyboard navigation
+
 open sources
 
 # Usage
