@@ -2,15 +2,17 @@
 Alternative Launchpad application for MacOS Tahoe. 
 
 # Features
+Tahoe style and classic style supported
+
 create folders
 
 rearrange icons
 
 search apps
 
-support full keyboard navigation
+keyboard navigation
 
-open sources
+open source
 
 # Usage
 1.Download the app
