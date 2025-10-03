@@ -1,6 +1,8 @@
 # LaunchNow
 Alternative Launchpad application for MacOS Tahoe. 
 
+![License](https://img.shields.io/github/license/ggkevinnnn/LaunchNow)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/ggkevinnnn/LaunchNow)
 ![GitHub all releases](https://img.shields.io/github/downloads/ggkevinnnn/LaunchNow/total)
 
 # Features
