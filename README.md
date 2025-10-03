@@ -14,6 +14,8 @@ keyboard navigation
 
 open source
 
+![GitHub all releases](https://img.shields.io/github/downloads/your_username/your_repo/total.svg)
+
 # Usage
 1.Download the app.
 
