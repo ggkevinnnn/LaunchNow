@@ -1,0 +1,57 @@
+//SettingsView
+"Style" = "Klassisches Launchpad (Vollbild)";
+"ShowAppName" = "App-Namen anzeigen";
+"ScrollSensitivity" = "Scroll-Empfindlichkeit";
+"Low" = "Niedrig";
+"High" = "Hoch";
+"Export" = "Daten exportieren";
+"Import" = "Daten importieren";
+"Refresh" = "Aktualisieren";
+"ResetLayout" = "Layout zurücksetzen";
+"ConfirmReset" = "Möchten Sie das Layout wirklich zurücksetzen?";
+"Reset" = "Zurücksetzen";
+"Cancel" = "Abbrechen";
+"ResetAlert" = "Dies setzt das Layout vollständig zurück: Alle Ordner werden entfernt, die gespeicherte Reihenfolge gelöscht und alle Anwendungen neu gescannt. Alle Anpassungen gehen verloren.";
+"Quit" = "Beenden";
+"DisplayedLanguage" = "Anzeigesprache";
+"Language" = "Sprache...";
+"ShowWelcome" = "Einführung anzeigen";
+"Confirm" = "Bestätigen";
+"CheckUpdates" = "Auf Updates prüfen";
+
+//LaunchpadView
+"Search" = "Suche";
+"NoAppsFound" = "Keine Apps gefunden";
+
+//FolderView
+"FolderName" = "Ordnername";
+
+//FolderInfo
+"Untitled" = "Unbenannt";
+
+//WelcomeView
+"Welcome" = "Willkommen bei LaunchNow";
+"Drag" = "Ziehen Sie App-Symbole, um die App-Reihenfolge anzupassen.";
+"Hover" = "Ziehen Sie eine App und halten Sie sie über einer anderen App/einem Ordner, um einen Ordner zu erstellen oder die App hinzuzufügen. Halten Sie die OPTION-Taste gedrückt, um den Sperrmodus zu aktivieren (andere Apps können sich nicht bewegen, nur Ordner erstellen/Apps hinzufügen).";
+"Scroll" = "Scrollen, um zu anderen Seiten zu wechseln.";
+"RunOnBackground" = "Automatisch im Hintergrund ausführen: Fügen Sie LaunchNow zum Dock hinzu oder verwenden Sie andere benutzerdefinierte Methoden, um das Fenster zu öffnen.";
+"StartNow" = "Jetzt starten";
+"Keyboard" = "Die Tastaturnavigation wird unterstützt, verwenden Sie Tabulatortaste oder Umschalt+Tabulatortaste, um zu einer anderen Seite zu wechseln, verwenden Sie die Pfeiltasten, um die ausgewählte App zu ändern, verwenden Sie die Eingabetaste, um die App zu öffnen.";
+
+//Updater
+"FoundNewVersion" = "Neue Version gefunden: ";
+"GoToGithub" = "Gehe zu Github, um die neueste Version herunterzuladen";
+"AlreadyLatest" = "Bereits die neueste Version: ";
+"Enjoy" = "Viel Spaß!";
+
+//new
+"CustomizeScannedFolder" = "Scanordner anpassen";
+"Add" = "Hinzufügen";
+"AddFolder" = "Ordner hinzufügen";
+"ResetToDefault" = "Auf Standard zurücksetzen";
+"NoFolders" = "Keine Ordner";
+
+"IconSize" = "Symbolgröße";
+"Small" = "Klein";
+"Large" = "Groß";
+"DefaultSize" = "Standardgröße";

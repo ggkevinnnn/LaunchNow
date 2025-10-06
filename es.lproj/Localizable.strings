@@ -1,0 +1,57 @@
+//SettingsView
+"Style" = "Launchpad Clásico (Pantalla Completa)";
+"ShowAppName" = "Mostrar nombre de la app";
+"ScrollSensitivity" = "Sensibilidad del desplazamiento";
+"Low" = "Baja";
+"High" = "Alta";
+"Export" = "Exportar datos";
+"Import" = "Importar datos";
+"Refresh" = "Actualizar";
+"ResetLayout" = "Restablecer diseño";
+"ConfirmReset" = "¿Confirmar restablecimiento del diseño?";
+"Reset" = "Restablecer";
+"Cancel" = "Cancelar";
+"ResetAlert" = "Esto restablecerá completamente el diseño: eliminará todas las carpetas, borrará el orden guardado y volverá a escanear todas las aplicaciones. Se perderán todas las personalizaciones.";
+"Quit" = "Salir";
+"DisplayedLanguage" = "Idioma mostrado";
+"Language" = "Idioma...";
+"ShowWelcome" = "Mostrar introducción";
+"Confirm" = "Confirmar";
+"CheckUpdates" = "Buscar actualizaciones";
+
+//LaunchpadView
+"Search" = "Buscar";
+"NoAppsFound" = "No se encontraron aplicaciones";
+
+//FolderView
+"FolderName" = "Nombre de la carpeta";
+
+//FolderInfo
+"Untitled" = "Sin título";
+
+//WelcomeView
+"Welcome" = "Bienvenido a LaunchNow";
+"Drag" = "Arrastra los iconos de las apps para personalizar el orden de las apps.";
+"Hover" = "Arrastra una app y colócala sobre otra app/carpeta para crear una carpeta o añadir la app a la carpeta. Mantén presionada la tecla OPTION para activar el modo de bloqueo (donde no se moverán otras apps, solo puedes crear carpetas/agregar apps).";
+"Scroll" = "Desplázate para cambiar a otras páginas.";
+"RunOnBackground" = "Ejecutar automáticamente en segundo plano: agrega LaunchNow al Dock o usa otros métodos personalizados para abrir la ventana de la aplicación.";
+"StartNow" = "Comenzar ahora";
+"Keyboard" = "Se admite la navegación por teclado, use Tab o Shift+Tab para pasar a otra página, use las teclas de flecha para cambiar la aplicación elegida, use Retorno para abrir la aplicación.";
+
+//Updater
+"FoundNewVersion" = "Nueva versión encontrada: ";
+"GoToGithub" = "Ve a Github para descargar la última versión";
+"AlreadyLatest" = "Ya tienes la última versión: ";
+"Enjoy" = "¡Disfruta!";
+
+//new
+"CustomizeScannedFolder" = "Personalizar carpeta escaneada";
+"Add" = "Agregar";
+"AddFolder" = "Agregar carpeta";
+"ResetToDefault" = "Restablecer valores predeterminados";
+"NoFolders" = "Sin carpetas";
+
+"IconSize" = "Tamaño del icono";
+"Small" = "Pequeño";
+"Large" = "Grande";
+"DefaultSize" = "Tamaño predeterminado";

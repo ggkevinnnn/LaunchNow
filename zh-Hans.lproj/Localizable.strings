@@ -1,0 +1,70 @@
+//
+//  Localizable.strings
+//  LaunchNow
+//
+//  Created by gzk on 10/2/25.
+//
+
+//SettingsView
+"Style" = "经典启动台界面（全屏）";
+"ShowAppName" = "显示应用名称";
+"ScrollSensitivity" = "滚动灵敏度";
+"Low" = "低";
+"High" = "高";
+"Export" = "导出数据";
+"Import" = "导入数据";
+"Refresh" = "刷新";
+"ResetLayout" = "重置布局";
+"ConfirmReset" = "确定重重布局？";
+"Reset" = "重置";
+"Cancel" = "取消";
+"ResetAlert" = "这会完全重置布局: 移除所有文件夹, 回复所有应用排序为默认排序, 并重新扫描所有应用。所有自定义排序都会丢失。";
+"Quit" = "退出";
+"DisplayedLanguage" = "语言显示";
+"Language" = "语言...";
+"ShowWelcome" = "显示指南";
+"Confirm" = "确认";
+"CheckUpdates" = "检查更新";
+
+//LaunchpadView
+"Search" = "搜索";
+"NoAppsFound" = "未找到应用";
+
+//FolderView
+"FolderName" = "文件夹名称";
+
+//FolderInfo
+"Untitled" = "未命名";
+
+//WelcomeView
+"Welcome" = "欢迎来到LaunchNow";
+"Drag" = "拖拽应用图标以自定义排序。";
+"Hover" = "拖拽应用并悬停到其他应用/文件夹图标上方来创建文件夹/添加应用到文件夹，按住OPTION按键以启用锁定模式（此模式下除被拖拽应用之外的其他图标不可移动，仅可拖拽应用创建文件夹/添加应用到文件夹）。";
+"Scroll" = "滚动以翻页。";
+"RunOnBackground" = "LaunchNow自动在后台运行，可将应用添加到dock栏打开应用窗口或配合其他应用自定义打开方式。";
+"StartNow" = "现在开始";
+"Keyboard" = "支持键盘导航，使用Tab或Shift+Tab转到另一个页面，使用箭头键更改所选应用程序，使用Return打开应用程序。";
+
+//Updater
+"FoundNewVersion" = "发现新版本: ";
+"GoToGithub" = "前往Github下载最新版本";
+"AlreadyLatest" = "已是最新版本: ";
+"Enjoy" = "恭喜!";
+
+//LocalizedAppName
+"Safari" = "Safari浏览器";
+"Pages" = "Pages文稿";
+"Keynote" = "Keynote讲演";
+"Numbers" = "Numbers表格";
+
+//new
+"CustomizeScannedFolder" = "自定义扫描文件夹";
+"Add" = "添加";
+"AddFolder" = "添加文件夹";
+"ResetToDefault" = "恢复默认";
+"NoFolders" = "暂无文件夹";
+
+"IconSize" = "图标大小";
+"Small" = "小";
+"Large" = "大";
+"DefaultSize" = "恢复默认大小";

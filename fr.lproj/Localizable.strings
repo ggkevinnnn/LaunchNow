@@ -1,0 +1,57 @@
+//SettingsView
+"Style" = "Launchpad Classique (Plein écran)";
+"ShowAppName" = "Afficher le nom de l'app";
+"ScrollSensitivity" = "Sensibilité du défilement";
+"Low" = "Faible";
+"High" = "Élevée";
+"Export" = "Exporter les données";
+"Import" = "Importer les données";
+"Refresh" = "Actualiser";
+"ResetLayout" = "Réinitialiser la disposition";
+"ConfirmReset" = "Confirmer la réinitialisation de la disposition ?";
+"Reset" = "Réinitialiser";
+"Cancel" = "Annuler";
+"ResetAlert" = "Cela réinitialisera complètement la disposition : supprimer tous les dossiers, effacer l'ordre enregistré et rescanner toutes les applications. Toutes les personnalisations seront perdues.";
+"Quit" = "Quitter";
+"DisplayedLanguage" = "Langue affichée";
+"Language" = "Langue...";
+"ShowWelcome" = "Afficher l'introduction";
+"Confirm" = "Confirmer";
+"CheckUpdates" = "Vérifier les mises à jour";
+
+//LaunchpadView
+"Search" = "Rechercher";
+"NoAppsFound" = "Aucune application trouvée";
+
+//FolderView
+"FolderName" = "Nom du dossier";
+
+//FolderInfo
+"Untitled" = "Sans titre";
+
+//WelcomeView
+"Welcome" = "Bienvenue dans LaunchNow";
+"Drag" = "Faites glisser les icônes des applications pour personnaliser l'ordre des applications.";
+"Hover" = "Faites glisser une application et survolez une autre application/dossier pour créer un dossier ou ajouter l'application au dossier. Maintenez la touche OPTION enfoncée pour activer le mode verrouillage (les autres applications ne bougeront pas, vous pouvez seulement créer des dossiers/ajouter des applications).";
+"Scroll" = "Faites défiler pour passer à d'autres pages.";
+"RunOnBackground" = "Exécution automatique en arrière-plan : ajoutez LaunchNow au Dock ou utilisez d'autres méthodes personnalisées pour ouvrir la fenêtre de l'application.";
+"StartNow" = "Commencer maintenant";
+"Keyboard" = "La navigation au clavier est prise en charge, utilisez Tab ou Maj+Tab pour passer à une autre page, utilisez les touches fléchées pour modifier l'application choisie, utilisez Retour pour ouvrir l'application.";
+
+//Updater
+"FoundNewVersion" = "Nouvelle version trouvée : ";
+"GoToGithub" = "Allez sur Github pour télécharger la dernière version";
+"AlreadyLatest" = "Déjà la dernière version : ";
+"Enjoy" = "Profitez-en !";
+
+//new
+"CustomizeScannedFolder" = "Personnaliser le dossier analysé";
+"Add" = "Ajouter";
+"AddFolder" = "Ajouter un dossier";
+"ResetToDefault" = "Réinitialiser par défaut";
+"NoFolders" = "Aucun dossier";
+
+"IconSize" = "Taille de l’icône";
+"Small" = "Petit";
+"Large" = "Grand";
+"DefaultSize" = "Taille par défaut";
