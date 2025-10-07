@@ -493,7 +493,6 @@ struct LaunchpadView: View {
             if focused { isKeyboardNavigationActive = false }
          }
          .onAppear {
-             appStore.performInitialScanIfNeeded()
              setupKeyHandlers()
              setupInitialSelection()
              setupWindowShownObserver()

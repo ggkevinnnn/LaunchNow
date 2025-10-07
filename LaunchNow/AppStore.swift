@@ -72,6 +72,8 @@ final class AppStore: ObservableObject {
     @Published var gridRefreshTrigger: UUID = UUID()
     
     var modelContext: ModelContext?
+    
+    private var isConfigured: Bool = false
 
     // MARK: - Auto rescan (FSEvents)
     private var fsEventStream: FSEventStreamRef?
@@ -103,11 +105,13 @@ final class AppStore: ObservableObject {
     @Published var defaultSearchPaths: [String] = [] {
         didSet {
             UserDefaults.standard.set(defaultSearchPaths, forKey: "defaultApplicationSearchPaths")
-            restartAutoRescan()
-            scanApplicationsWithOrderPreservation()
-            // 扫描应用是异步的，这里稍作延迟后清理空页面，确保扫描结果已应用
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                self?.removeEmptyPages()
+            if isConfigured {
+                restartAutoRescan()
+                scanApplicationsWithOrderPreservation()
+                // 扫描应用是异步的，这里稍作延迟后清理空页面，确保扫描结果已应用
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                    self?.removeEmptyPages()
+                }
             }
         }
     }
@@ -116,11 +120,13 @@ final class AppStore: ObservableObject {
         didSet {
             UserDefaults.standard.set(customSearchPaths, forKey: "customApplicationSearchPaths")
             // 路径发生变化时，重启自动扫描监听并触发一次智能扫描
-            restartAutoRescan()
-            scanApplicationsWithOrderPreservation()
-            // 扫描应用是异步的，这里稍作延迟后清理空页面，确保扫描结果已应用
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                self?.removeEmptyPages()
+            if isConfigured {
+                restartAutoRescan()
+                scanApplicationsWithOrderPreservation()
+                // 扫描应用是异步的，这里稍作延迟后清理空页面，确保扫描结果已应用
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                    self?.removeEmptyPages()
+                }
             }
         }
     }
@@ -172,6 +178,7 @@ final class AppStore: ObservableObject {
 
     func configure(modelContext: ModelContext) {
         self.modelContext = modelContext
+        self.isConfigured = true
         
         // 立即尝试加载持久化数据（如果已有数据）——不要过早设置标记，等待加载完成时设置
         if !hasAppliedOrderFromStore {
