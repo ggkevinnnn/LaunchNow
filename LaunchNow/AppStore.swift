@@ -12,7 +12,6 @@ final class AppStore: ObservableObject {
     @Published var isSetting = false
     @Published var currentPage = 0
     @Published var searchText: String = ""
-    @Published var isStartOnLogin: Bool = false
     @Published var isFullscreenMode: Bool = false {
         didSet {
             UserDefaults.standard.set(isFullscreenMode, forKey: "isFullscreenMode")
@@ -59,7 +58,28 @@ final class AppStore: ObservableObject {
     private let cacheManager = AppCacheManager.shared
     
     // 文件夹相关状态
-    @Published var openFolder: FolderInfo? = nil
+    @Published var openFolder: FolderInfo? = nil {
+        didSet {
+            // When closing an open folder, ensure we reset editing/dragging states so grid drag works again
+            if oldValue != nil && openFolder == nil {
+                // End any folder-name editing session
+                isFolderNameEditing = false
+                // Exit option mode
+                isOptionFolderMode = false
+                // Clear any in-progress folder creation state
+                isDragCreatingFolder = false
+                folderCreationTarget = nil
+                // Clear drag handoff states
+                handoffDraggingApp = nil
+                handoffDragScreenLocation = nil
+                // Reset keyboard activation flag
+                openFolderActivatedByKeyboard = false
+                // Ensure UI refreshes and grid becomes interactive again
+                triggerFolderUpdate()
+                triggerGridRefresh()
+            }
+        }
+    }
     @Published var isDragCreatingFolder = false
     @Published var folderCreationTarget: AppInfo? = nil
     @Published var openFolderActivatedByKeyboard: Bool = false
@@ -1241,6 +1261,8 @@ final class AppStore: ObservableObject {
             }
         }
         
+        // End any ongoing name editing once rename completes
+        isFolderNameEditing = false
         
         // 立即触发文件夹更新，通知所有相关视图刷新
         triggerFolderUpdate()
