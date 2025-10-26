@@ -1,57 +1,64 @@
+//
+//  Localizable.strings
+//  LaunchNow
+//
+//  Created by gzk on 10/2/25.
+//
+
 //SettingsView
-"Style" = "Классический Launchpad (Полноэкранный)";
-"ShowAppName" = "Показывать названия приложений";
-"ScrollSensitivity" = "Чувствительность прокрутки";
-"Low" = "Низкая";
-"High" = "Высокая";
-"Export" = "Экспорт данных";
-"Import" = "Импорт данных";
-"Refresh" = "Обновить";
-"ResetLayout" = "Сбросить расположение";
-"ConfirmReset" = "Вы действительно хотите сбросить расположение?";
-"Reset" = "Сбросить";
-"Cancel" = "Отмена";
-"ResetAlert" = "При сбросе будут удалены все папки, очищён порядок приложений и выполнено повторное сканирование. Все пользовательские изменения будут утеряны.";
-"Quit" = "Выйти";
-"DisplayedLanguage" = "Отображаемый язык";
-"Language" = "Выбрать язык...";
-"ShowWelcome" = "Показать приветствие";
-"Confirm" = "Подтвердить";
-"CheckUpdates" = "Проверить наличие обновлений";
+"Style" = "Classic Launchpad (Fullscreen)";
+"ShowAppName" = "Show app name";
+"ScrollSensitivity" = "Scrolling sensitivity";
+"Low" = "Low";
+"High" = "High";
+"Export" = "Export Data";
+"Import" = "Import Data";
+"Refresh" = "Refresh";
+"ResetLayout" = "Reset Layout";
+"ConfirmReset" = "Confirm to reset layout?";
+"Reset" = "Reset";
+"Cancel" = "Cancel";
+"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
+"Quit" = "Quit";
+"DisplayedLanguage" = "Displayed language";
+"Language" = "Language...";
+"ShowWelcome" = "Show Introduction";
+"Confirm" = "Confirm";
+"CheckUpdates" = "Check for Updates";
 
 //LaunchpadView
-"Search" = "Поиск";
-"NoAppsFound" = "Приложения не найдены";
+"Search" = "Search";
+"NoAppsFound" = "No Apps Found";
 
 //FolderView
-"FolderName" = "Название папки";
+"FolderName" = "FolderName";
 
 //FolderInfo
-"Untitled" = "Без названия";
+"Untitled" = "Untitled";
 
 //WelcomeView
-"Welcome" = "Добро пожаловать в LaunchNow";
-"Drag" = "Перетаскивайте значки приложений, чтобы изменить их порядок.";
-"Hover" = "Чтобы создать папку или добавить приложение, перетащите одно приложение на другое. Удерживайте клавишу Option, чтобы включить режим блокировки (движение других приложений будет запрещено).";
-"Scroll" = "Прокрутите, чтобы перейти на другие страницы.";
-"RunOnBackground" = "Автоматический запуск в фоновом режиме: добавьте LaunchNow в панель Dock или используйте другие способы открытия окна приложения.";
-"StartNow" = "Начать сейчас";
-"Keyboard" = "Доступно управление с клавиатуры: используйте клавиши Tab или Shift–Tab для перехода между страницами, стрелки — для выбора приложения, клавишу Return — для его открытия.";
+"Welcome" = "Welcome to LaunchNow";
+"Drag" = "Drag app icons to customize app sorts.";
+"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
+"Scroll" = "Scroll to turn to other pages.";
+"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
+"StartNow" = "Start Now";
+"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
 
 //Updater
-"FoundNewVersion" = "Доступна новая версия:";
-"GoToGithub" = "Открыть GitHub, чтобы загрузить последнюю версию";
-"AlreadyLatest" = "Установлена последняя версия:";
-"Enjoy" = "Приятного использования!";
+"FoundNewVersion" = "Found New Version: ";
+"GoToGithub" = "Go to Github to download the latest version";
+"AlreadyLatest" = "Already the latest version: ";
+"Enjoy" = "Enjoy!";
 
 //new
-"CustomizeScannedFolder" = "Настроить папки для сканирования";
-"Add" = "Добавить";
-"AddFolder" = "Добавить папку";
-"ResetToDefault" = "Настройки по умолчанию";
-"NoFolders" = "Нет папок";
+"CustomizeScannedFolder" = "Customize scanned folder";
+"Add" = "Add";
+"AddFolder" = "Add folder";
+"ResetToDefault" = "Reset to default";
+"NoFolders" = "No folders";
 
-"IconSize" = "Размер значков";
-"Small" = "Маленький";
-"Large" = "Большой";
-"DefaultSize" = "По умолчанию";
+"IconSize" = "Icon size";
+"Small" = "Small";
+"Large" = "Large";
+"DefaultSize" = "Default size";
