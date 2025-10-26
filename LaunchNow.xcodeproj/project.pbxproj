@@ -12,6 +12,10 @@
 
 /* Begin PBXFileReference section */
 		0D1B0B402E4CDE460083EEF9 /* LaunchNow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LaunchNow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0D4D70FA2EADCAFB00535139 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		0D4D70FB2EADCAFF00535139 /* pt-PT */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-PT"; path = "pt-PT.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		0D4D70FC2EADCB0200535139 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
+		0D4D70FD2EADCB0700535139 /* nl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/Localizable.strings; sourceTree = "<group>"; };
 		0D4E15EC2E8EBD3C009C3229 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		0DA5E9D92E8E6C3B00471D65 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 		0DA5E9DA2E8E6C4100471D65 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -106,6 +110,10 @@
 				de,
 				es,
 				fr,
+				"pt-BR",
+				"pt-PT",
+				ru,
+				nl,
 			);
 			mainGroup = 0D1B0B372E4CDE460083EEF9;
 			minimizedProjectReferenceProxies = 1;
@@ -149,6 +157,10 @@
 				0DA5E9D92E8E6C3B00471D65 /* de */,
 				0DA5E9DA2E8E6C4100471D65 /* es */,
 				0D4E15EC2E8EBD3C009C3229 /* fr */,
+				0D4D70FA2EADCAFB00535139 /* pt-BR */,
+				0D4D70FB2EADCAFF00535139 /* pt-PT */,
+				0D4D70FC2EADCB0200535139 /* ru */,
+				0D4D70FD2EADCB0700535139 /* nl */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -284,7 +296,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20251008;
+				CURRENT_PROJECT_VERSION = 20251026;
 				DEVELOPMENT_TEAM = 6V3LHNB5K8;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -298,7 +310,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.8;
+				MARKETING_VERSION = 1.4.10;
 				PRODUCT_BUNDLE_IDENTIFIER = Kevin.LaunchNow;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -320,7 +332,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20251008;
+				CURRENT_PROJECT_VERSION = 20251026;
 				DEVELOPMENT_TEAM = 6V3LHNB5K8;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -334,7 +346,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.8;
+				MARKETING_VERSION = 1.4.10;
 				PRODUCT_BUNDLE_IDENTIFIER = Kevin.LaunchNow;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

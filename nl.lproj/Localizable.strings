@@ -2,63 +2,63 @@
 //  Localizable.strings
 //  LaunchNow
 //
-//  Created by gzk on 10/2/25.
+//  Created by OABsoftware on 10/17/2025.
 //
 
 //SettingsView
-"Style" = "Classic Launchpad (Fullscreen)";
-"ShowAppName" = "Show app name";
-"ScrollSensitivity" = "Scrolling sensitivity";
-"Low" = "Low";
-"High" = "High";
-"Export" = "Export Data";
-"Import" = "Import Data";
-"Refresh" = "Refresh";
-"ResetLayout" = "Reset Layout";
-"ConfirmReset" = "Confirm to reset layout?";
-"Reset" = "Reset";
-"Cancel" = "Cancel";
-"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
-"Quit" = "Quit";
-"DisplayedLanguage" = "Displayed language";
-"Language" = "Language...";
-"ShowWelcome" = "Show Introduction";
-"Confirm" = "Confirm";
-"CheckUpdates" = "Check for Updates";
+"Style" = "Klassiek Launchpad (volledig scherm)";
+"ShowAppName" = "Toon app namen";
+"ScrollSensitivity" = "Scroll gevoeligheid";
+"Low" = "Laag";
+"High" = "Hoog";
+"Export" = "Configuratie exporteren";
+"Import" = "Configuratie importeren";
+"Refresh" = "Vernieuwen";
+"ResetLayout" = "Indeling opnieuw instellen";
+"ConfirmReset" = "Weet je zeker dat je de indeling opnieuw wilt instellen?";
+"Reset" = "Herstellen";
+"Cancel" = "Annuleren";
+"ResetAlert" = "Deze actie zal LaunchNow helemaal opnieuw instellen: alle mappen worden verwijderd, de volgorde van apps wordt hersteld en alle apps worden opnieuw toegevoegd. Al je eigen aanpassingen gaan verloren.";
+"Quit" = "Afsluiten";
+"DisplayedLanguage" = "Getoonde taal";
+"Language" = "Taal...";
+"ShowWelcome" = "Toon introductie";
+"Confirm" = "Ok";
+"CheckUpdates" = "Zoek naar update";
 
 //LaunchpadView
-"Search" = "Search";
-"NoAppsFound" = "No Apps Found";
+"Search" = "Zoeken";
+"NoAppsFound" = "Geen apps gevonden";
 
 //FolderView
-"FolderName" = "FolderName";
+"FolderName" = "Map naam";
 
 //FolderInfo
-"Untitled" = "Untitled";
+"Untitled" = "(geen titel)";
 
 //WelcomeView
-"Welcome" = "Welcome to LaunchNow";
-"Drag" = "Drag app icons to customize app sorts.";
-"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
-"Scroll" = "Scroll to turn to other pages.";
-"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
-"StartNow" = "Start Now";
-"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
+"Welcome" = "Welkom bij LaunchNow";
+"Drag" = "Versleep een app om de volgorde aan te passen.";
+"Hover" = "Sleep een app over een andere heen om een map te maken. Sleep een app over een map om de app aan die map toe te voegen; houdt daarbij de OPTIE toets ingedrukt om te voorkomen dat de andere apps en mappen verschuiven.";
+"Scroll" = "Scroll om naar de volgende of vorige pagina met apps te gaan.";
+"RunOnBackground" = "Om LaunchNow automatisch op de achtergrond te laten draaien, kun je de LaunchNow app naar de dock slepen.";
+"StartNow" = "Beginnen maar!";
+"Keyboard" = "Toetsenbord navigatie wordt ondersteund. Gebruik TAB of SHIFT+TAB om naar respectievelijk de volgende of de vorige pagina met apps te gaan. Gebruik de pijltjes toetsen om naar de gewenste app te navigeren. Gebruik ENTER om de app te starten.";
 
 //Updater
-"FoundNewVersion" = "Found New Version: ";
-"GoToGithub" = "Go to Github to download the latest version";
-"AlreadyLatest" = "Already the latest version: ";
-"Enjoy" = "Enjoy!";
+"FoundNewVersion" = "Nieuwe versie gevonden: ";
+"GoToGithub" = "Ga naar GitHub om de nieuwste versie te downloaden en te installeren.";
+"AlreadyLatest" = "Je gebruikt al de nieuwste versie: ";
+"Enjoy" = "Veel plezier!";
 
 //new
-"CustomizeScannedFolder" = "Customize scanned folder";
-"Add" = "Add";
-"AddFolder" = "Add folder";
-"ResetToDefault" = "Reset to default";
-"NoFolders" = "No folders";
+"CustomizeScannedFolder" = "Gescande mappen aanpassen";
+"Add" = "Map toevoegen";
+"AddFolder" = "Toevoegen";
+"ResetToDefault" = "Standaard mappen";
+"NoFolders" = "Geen mappen";
 
-"IconSize" = "Icon size";
-"Small" = "Small";
-"Large" = "Large";
-"DefaultSize" = "Default size";
+"IconSize" = "Pictogram formaat";
+"Small" = "Klein";
+"Large" = "Groot";
+"DefaultSize" = "Standaard";
