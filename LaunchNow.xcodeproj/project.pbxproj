@@ -21,6 +21,7 @@
 		0DA5E9DA2E8E6C4100471D65 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		0DB258FD2E8E1DB800A00A0D /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		0DB259002E8E1DBB00A00A0D /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		0DBAE4242EB251D100C05388 /* bg */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = bg; path = bg.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -114,6 +115,7 @@
 				"pt-BR",
 				"pt-PT",
 				ru,
+				bg,
 			);
 			mainGroup = 0D1B0B372E4CDE460083EEF9;
 			minimizedProjectReferenceProxies = 1;
@@ -161,6 +163,7 @@
 				0D4D711F2EADCBF400535139 /* pt-BR */,
 				0D4D71202EADCBF800535139 /* pt-PT */,
 				0D4D71212EADCBFE00535139 /* ru */,
+				0DBAE4242EB251D100C05388 /* bg */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -296,7 +299,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20251026;
+				CURRENT_PROJECT_VERSION = 20251029;
 				DEVELOPMENT_TEAM = 6V3LHNB5K8;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -310,7 +313,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.10;
+				MARKETING_VERSION = 1.4.11;
 				PRODUCT_BUNDLE_IDENTIFIER = Kevin.LaunchNow;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -332,7 +335,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 20251026;
+				CURRENT_PROJECT_VERSION = 20251029;
 				DEVELOPMENT_TEAM = 6V3LHNB5K8;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -346,7 +349,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.10;
+				MARKETING_VERSION = 1.4.11;
 				PRODUCT_BUNDLE_IDENTIFIER = Kevin.LaunchNow;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

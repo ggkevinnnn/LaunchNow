@@ -2,63 +2,63 @@
 //  Localizable.strings
 //  LaunchNow
 //
-//  Created by gzk on 10/2/25.
+//  Created by Трифон Иванов on 10/2/25.
 //
 
 //SettingsView
-"Style" = "Classic Launchpad (Fullscreen)";
-"ShowAppName" = "Show app name";
-"ScrollSensitivity" = "Scrolling sensitivity";
-"Low" = "Low";
-"High" = "High";
-"Export" = "Export Data";
-"Import" = "Import Data";
-"Refresh" = "Refresh";
-"ResetLayout" = "Reset Layout";
-"ConfirmReset" = "Confirm to reset layout?";
-"Reset" = "Reset";
-"Cancel" = "Cancel";
-"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
-"Quit" = "Quit";
-"DisplayedLanguage" = "Displayed language";
-"Language" = "Language...";
-"ShowWelcome" = "Show Introduction";
-"Confirm" = "Confirm";
-"CheckUpdates" = "Check for Updates";
+"Style" = "Класически Launchpad (Цял екран)";
+"ShowAppName" = "Покажи името на приложението";
+"ScrollSensitivity" = "Чувствителност на превъртане";
+"Low" = "Ниска";
+"High" = "Висока";
+"Export" = "Експортиране на данни";
+"Import" = "Импортиране на данни";
+"Refresh" = "Обнови";
+"ResetLayout" = "Нулирай подредбата";
+"ConfirmReset" = "Потвърждаване на нулирането на подредбата?";
+"Reset" = "Нулиране";
+"Cancel" = "Отказ";
+"ResetAlert" = "Това ще нулира напълно оформлението: ще премахне всички папки, ще изчисти запазения ред и ще сканира отново всички приложения. Всички персонализации ще бъдат загубени.";
+"Quit" = "Изключване";
+"DisplayedLanguage" = "Език на показване";
+"Language" = "Език...";
+"ShowWelcome" = "Покажи въведение";
+"Confirm" = "Потвърди";
+"CheckUpdates" = "Провери за актуализации";
 
 //LaunchpadView
-"Search" = "Search";
-"NoAppsFound" = "No Apps Found";
+"Search" = "търсене";
+"NoAppsFound" = "Няма намерени приложения";
 
 //FolderView
-"FolderName" = "FolderName";
+"FolderName" = "Име на папка";
 
 //FolderInfo
-"Untitled" = "Untitled";
+"Untitled" = "Без заглавие";
 
 //WelcomeView
-"Welcome" = "Welcome to LaunchNow";
-"Drag" = "Drag app icons to customize app sorts.";
-"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
-"Scroll" = "Scroll to turn to other pages.";
-"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
-"StartNow" = "Start Now";
-"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
+"Welcome" = "Добре дошли в LaunchNow";
+"Drag" = "Плъзнете иконите на приложения, за да персонализирате сортирането на приложения.";
+"Hover" = "Плъзнете приложение и задръжте курсора на мишката върху друго приложение/папка, за да създадете папка или да добавите приложението към папка, натиснете и задръжте клавиша OPTION, за да активирате режим на заключване (където движението на други приложения ще бъде забранено, можете само да създавате папки/добавяте приложения към папки).";
+"Scroll" = "Превъртете, за да отворите други страници.";
+"RunOnBackground" = "Автоматично стартиране във фонов режим: добавете LaunchNow към Dock или използвайте други персонализирани начини за отваряне на прозореца на приложението.";
+"StartNow" = "Започнете сега";
+"Keyboard" = "Поддържа се навигация с клавиатура, използвайте Tab или Shift+Tab, за да преминете към друга страница, използвайте клавишите със стрелки, за да промените избраното приложение, използвайте Return, за да отворите приложението.";
 
 //Updater
-"FoundNewVersion" = "Found New Version: ";
-"GoToGithub" = "Go to Github to download the latest version";
-"AlreadyLatest" = "Already the latest version: ";
-"Enjoy" = "Enjoy!";
+"FoundNewVersion" = "Намерена е нова версия: ";
+"GoToGithub" = "Отидете в Github, за да изтеглите най-новата версия";
+"AlreadyLatest" = "Вече е най-новата версия: ";
+"Enjoy" = "Насладете се!";
 
 //new
-"CustomizeScannedFolder" = "Customize scanned folder";
-"Add" = "Add";
-"AddFolder" = "Add folder";
-"ResetToDefault" = "Reset to default";
-"NoFolders" = "No folders";
+"CustomizeScannedFolder" = "Персонализиране на сканирана папка";
+"Add" = "Добави";
+"AddFolder" = "Добави папка";
+"ResetToDefault" = "Възстановяване по подразбиране";
+"NoFolders" = "Няма папки";
 
-"IconSize" = "Icon size";
-"Small" = "Small";
-"Large" = "Large";
-"DefaultSize" = "Default size";
+"IconSize" = "Размер на икона";
+"Small" = "Малка";
+"Large" = "Голяма";
+"DefaultSize" = "Размер по подразбиране";
