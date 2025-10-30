@@ -27,7 +27,7 @@
 "CheckUpdates" = "Провери за актуализации";
 
 //LaunchpadView
-"Search" = "търсене";
+"Search" = "Търсене";
 "NoAppsFound" = "Няма намерени приложения";
 
 //FolderView
@@ -52,7 +52,7 @@
 "Enjoy" = "Насладете се!";
 
 //new
-"CustomizeScannedFolder" = "Персонализиране на сканирана папка";
+"CustomizeScannedFolder" = "Избор на папки за сканиране";
 "Add" = "Добави";
 "AddFolder" = "Добави папка";
 "ResetToDefault" = "Възстановяване по подразбиране";
