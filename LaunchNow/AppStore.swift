@@ -69,9 +69,11 @@ final class AppStore: ObservableObject {
                 // Clear any in-progress folder creation state
                 isDragCreatingFolder = false
                 folderCreationTarget = nil
-                // Clear drag handoff states
-                handoffDraggingApp = nil
-                handoffDragScreenLocation = nil
+                // Clear drag handoff states ONLY if not currently handing off a drag
+                if handoffDraggingApp == nil {
+                    handoffDragScreenLocation = nil
+                }
+                // Do not reset handoffDraggingApp here to allow cross-surface drag handoff
                 // Reset keyboard activation flag
                 openFolderActivatedByKeyboard = false
                 // Ensure UI refreshes and grid becomes interactive again
@@ -1218,16 +1220,34 @@ final class AppStore: ObservableObject {
             }
         }
         
+        // Detect if we're in the middle of a drag handoff out of the folder
+        let currentEventType = NSApp.currentEvent?.type
+        let isDraggingNow = (currentEventType == .leftMouseDragged)
+        let isHandoffDrag = isDraggingNow || handoffDraggingApp != nil || handoffDragScreenLocation != nil
+        
         // 将应用重新添加到应用列表
         apps.append(app)
         apps.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         
-        // 尝试将该应用直接放入 items 的第一个空槽，避免出现临时空白格
-        if let emptyIndex = items.firstIndex(where: { if case .empty = $0 { return true } else { return false } }) {
-            items[emptyIndex] = .app(app)
+        if isHandoffDrag {
+            // 处于接力拖拽：将应用临时放回到网格中的一个空槽位，保证可见性
+            handoffDraggingApp = app
+            if let emptyIndex = items.firstIndex(where: { if case .empty = $0 { return true } else { return false } }) {
+                items[emptyIndex] = .app(app)
+            } else {
+                // 没有空槽位时，追加到末尾一页
+                items.append(.app(app))
+            }
+            // 不进行页面压缩，避免拖拽中槽位跳动
         } else {
-            // 如果没有空槽，直接追加
-            items.append(.app(app))
+            // 非拖拽场景：保持原有回填逻辑
+            if let emptyIndex = items.firstIndex(where: { if case .empty = $0 { return true } else { return false } }) {
+                items[emptyIndex] = .app(app)
+            } else {
+                items.append(.app(app))
+            }
+            // 直接进行页面内压缩，保持页面完整性
+            compactItemsWithinPages()
         }
         
         // 立即触发文件夹更新，通知所有相关视图刷新图标和名称
@@ -1235,9 +1255,6 @@ final class AppStore: ObservableObject {
         
         // 触发网格视图刷新，确保界面立即更新
         triggerGridRefresh()
-        
-        // 直接进行页面内压缩，保持页面完整性
-        compactItemsWithinPages()
         
         // 刷新缓存，确保搜索时能找到从文件夹移除的应用（在重建之后刷新）
         refreshCacheAfterFolderOperation()
@@ -1874,6 +1891,12 @@ final class AppStore: ObservableObject {
     
     /// 清理空文件夹：移除没有任何应用的文件夹，并同步更新 items
     func pruneEmptyFolders() {
+        // 在拖拽接力过程中避免改动布局，防止外部网格位置异常
+        let currentEventType = NSApp.currentEvent?.type
+        let isDraggingNow = (currentEventType == .leftMouseDragged)
+        let isHandoffDrag = isDraggingNow || handoffDraggingApp != nil || handoffDragScreenLocation != nil
+        if isHandoffDrag { return }
+
         // 收集空文件夹ID
         let emptyFolderIds: Set<String> = Set(folders.filter { $0.apps.isEmpty }.map { $0.id })
         guard !emptyFolderIds.isEmpty else { return }
@@ -2040,6 +2063,7 @@ final class AppStore: ObservableObject {
         triggerFolderUpdate()
         triggerGridRefresh()
         pruneEmptyFolders()
+        removeEmptyPages()
     }
     
     /// 清除缓存

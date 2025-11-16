@@ -117,6 +117,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         appStore.searchText = ""
         appStore.openFolder = nil
         appStore.saveAllOrder()
+        appStore.refresh()
         NotificationCenter.default.post(name: .launchpadWindowHidden, object: nil)
     }
     
