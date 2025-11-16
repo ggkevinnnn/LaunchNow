@@ -313,7 +313,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.11;
+				MARKETING_VERSION = 1.4.12;
 				PRODUCT_BUNDLE_IDENTIFIER = Kevin.LaunchNow;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -349,7 +349,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.11;
+				MARKETING_VERSION = 1.4.12;
 				PRODUCT_BUNDLE_IDENTIFIER = Kevin.LaunchNow;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
