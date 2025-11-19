@@ -1,0 +1,64 @@
+//
+//  Localizable.strings
+//  LaunchNow
+//
+//  Created by endianoia on 11/22/25.
+//
+
+//SettingsView
+"Style" = "クラシック Launchpad (全画面)";
+"ShowAppName" = "アプリ名の表示";
+"ScrollSensitivity" = "スクロールの感度";
+"Low" = "低い";
+"High" = "高い";
+"Export" = "データのエクスポート";
+"Import" = "データのインポート";
+"Refresh" = "更新";
+"ResetLayout" = "レイアウトのリセット";
+"ConfirmReset" = "本当にレイアウトのリセットをしますか？";
+"Reset" = "リセット";
+"Cancel" = "キャンセル";
+"ResetAlert" = "完全にレイアウトをリセットします: 全てのフォルダーの削除、保存した並び順の消去と、全てのアプリケーションの再読み込みをします。全ての変更は失われます。";
+"Quit" = "終了";
+"DisplayedLanguage" = "表示言語";
+"Language" = "言語...";
+"ShowWelcome" = "操作説明の表示";
+"Confirm" = "確定";
+"CheckUpdates" = "更新の確認";
+
+//LaunchpadView
+"Search" = "検索";
+"NoAppsFound" = "アプリがありません";
+
+//FolderView
+"FolderName" = "フォルダー名";
+
+//FolderInfo
+"Untitled" = "無題";
+
+//WelcomeView
+"Welcome" = "LaunchNowの説明";
+"Drag" = "アプリアイコンをドラッグし、アプリの並び順を編集します。";
+"Hover" = "アプリをドラッグしほかのアプリやフォルダーに重ねると、フォルダーが作成されるか、フォルダーにアプリが追加されます。オプションキーを押すとロックモードが有効になります(ほかのアプリへの操作は制限され、単にフォルダーの作成とフォルダーへのアプリ追加のみが可能です。)。";
+"Scroll" = "ほかのページにスクロールします。";
+"RunOnBackground" = "LaunchNowをドックに追加するか、ほかの方法でアプリケーションウインドウを開く事で、自動的にバックグラウンドで動作します。";
+"StartNow" = "今すぐ起動";
+"Keyboard" = "キーボードナビゲーションがサポートされています、TabかShift+Tabで別のページに移動、矢印キーでアプリを選択し, Returnでアプリを起動します。";
+
+//Updater
+"FoundNewVersion" = "新しいバージョンがあります: ";
+"GoToGithub" = "Githubから最新バージョンを取得";
+"AlreadyLatest" = "既に最新バージョンです: ";
+"Enjoy" = "エンジョイ！";
+
+//new
+"CustomizeScannedFolder" = "読み込みフォルダーの編集";
+"Add" = "追加";
+"AddFolder" = "フォルダーの追加";
+"ResetToDefault" = "規定にリセット";
+"NoFolders" = "フォルダー無し";
+
+"IconSize" = "アイコンサイズ";
+"Small" = "小";
+"Large" = "大";
+"DefaultSize" = "規定のサイズ";
