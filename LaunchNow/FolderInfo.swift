@@ -3,6 +3,20 @@ import AppKit
 import SwiftData
 
 struct FolderInfo: Identifiable, Equatable {
+    // Cache for rendered folder icons to avoid re-drawing on every access
+    private static let iconCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 256 // reasonable upper bound
+        return cache
+    }()
+
+    // Build a cache key that reflects folder id, requested side, and the first 4 app ids
+    private func folderIconCacheKey(side: CGFloat) -> String {
+        let normalizedSide = max(16, side)
+        let appIds = apps.prefix(4).map { $0.id }.joined(separator: ",")
+        return "folderIcon:\(id):\(Int(normalizedSide)):[\(appIds)]"
+    }
+
     let id: String
     var name: String
     var apps: [AppInfo]
@@ -23,52 +37,59 @@ struct FolderInfo: Identifiable, Equatable {
 
     func icon(of side: CGFloat) -> NSImage {
         let normalizedSide = max(16, side)
+        let key = folderIconCacheKey(side: normalizedSide) as NSString
+        if let cached = Self.iconCache.object(forKey: key) {
+            return cached
+        }
         let icon = renderFolderIcon(side: normalizedSide)
+        Self.iconCache.setObject(icon, forKey: key)
         return icon
     }
 
     private func renderFolderIcon(side: CGFloat) -> NSImage {
-        let size = NSSize(width: side, height: side)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        defer { image.unlockFocus() }
+        return autoreleasepool { () -> NSImage in
+            let size = NSSize(width: side, height: side)
+            let image = NSImage(size: size)
+            image.lockFocus()
+            defer { image.unlockFocus() }
 
-        if let ctx = NSGraphicsContext.current {
-            ctx.imageInterpolation = .high
-            ctx.shouldAntialias = true
+            if let ctx = NSGraphicsContext.current {
+                ctx.imageInterpolation = .high
+                ctx.shouldAntialias = true
+            }
+
+            let rect = NSRect(origin: .zero, size: size)
+
+            let outerInset = round(side * 0.12)
+            let contentRect = rect.insetBy(dx: outerInset, dy: outerInset)
+            let innerInset = round(contentRect.width * 0.08)
+            let innerRect = contentRect.insetBy(dx: innerInset, dy: innerInset)
+
+            let spacing = max(2, round(innerRect.width * 0.04))
+            let tile = floor((innerRect.width - spacing) / 2)
+            let startX = innerRect.minX
+            let topY = innerRect.maxY
+
+            for (index, app) in apps.prefix(4).enumerated() {
+                let rowTopFirst = index / 2
+                let col = index % 2
+                let x = startX + CGFloat(col) * (tile + spacing)
+                let y = topY - CGFloat(rowTopFirst + 1) * tile - CGFloat(rowTopFirst) * spacing
+                let iconRect = NSRect(x: x, y: y, width: tile, height: tile)
+
+                // Fallback: if app icon is empty, use system file icon
+                let iconToDraw: NSImage = {
+                    if app.icon.size.width > 0 && app.icon.size.height > 0 {
+                        return app.icon
+                    } else {
+                        return NSWorkspace.shared.icon(forFile: app.url.path)
+                    }
+                }()
+                iconToDraw.draw(in: iconRect)
+            }
+
+            return image
         }
-
-        let rect = NSRect(origin: .zero, size: size)
-
-        let outerInset = round(side * 0.12)
-        let contentRect = rect.insetBy(dx: outerInset, dy: outerInset)
-        let innerInset = round(contentRect.width * 0.08)
-        let innerRect = contentRect.insetBy(dx: innerInset, dy: innerInset)
-
-        let spacing = max(2, round(innerRect.width * 0.04))
-        let tile = floor((innerRect.width - spacing) / 2)
-        let startX = innerRect.minX
-        let topY = innerRect.maxY
-
-        for (index, app) in apps.prefix(4).enumerated() {
-            let rowTopFirst = index / 2
-            let col = index % 2
-            let x = startX + CGFloat(col) * (tile + spacing)
-            let y = topY - CGFloat(rowTopFirst + 1) * tile - CGFloat(rowTopFirst) * spacing
-            let iconRect = NSRect(x: x, y: y, width: tile, height: tile)
-            
-            // 图标兜底：若应用图标尺寸为0，回退到系统文件图标
-            let iconToDraw: NSImage = {
-                if app.icon.size.width > 0 && app.icon.size.height > 0 {
-                    return app.icon
-                } else {
-                    return NSWorkspace.shared.icon(forFile: app.url.path)
-                }
-            }()
-            iconToDraw.draw(in: iconRect)
-        }
-
-        return image
     }
     
     static func == (lhs: FolderInfo, rhs: FolderInfo) -> Bool {
@@ -77,6 +98,17 @@ struct FolderInfo: Identifiable, Equatable {
 }
 
 enum LaunchpadItem: Identifiable, Equatable {
+    // Shared transparent image to reduce allocations for empty placeholders
+    private static let transparentImage: NSImage = {
+        let size = NSSize(width: 1, height: 1)
+        let img = NSImage(size: size)
+        img.lockFocus()
+        NSColor.clear.setFill()
+        NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+        img.unlockFocus()
+        return img
+    }()
+
     case app(AppInfo)
     case folder(FolderInfo)
     case empty(String)
@@ -111,8 +143,8 @@ enum LaunchpadItem: Identifiable, Equatable {
             let icon = folder.folderIcon
             return icon
         case .empty:
-            // 透明占位
-            return NSImage(size: .zero)
+            // Use shared transparent placeholder to minimize allocations
+            return LaunchpadItem.transparentImage
         }
     }
 
