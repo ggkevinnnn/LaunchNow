@@ -131,7 +131,7 @@ final class AppStore: ObservableObject {
                 restartAutoRescan()
                 scanApplicationsWithOrderPreservation()
                 // 扫描应用是异步的，这里稍作延迟后清理空页面，确保扫描结果已应用
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                     self?.removeEmptyPages()
                 }
             }
@@ -146,7 +146,7 @@ final class AppStore: ObservableObject {
                 restartAutoRescan()
                 scanApplicationsWithOrderPreservation()
                 // 扫描应用是异步的，这里稍作延迟后清理空页面，确保扫描结果已应用
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                     self?.removeEmptyPages()
                 }
             }
@@ -1327,7 +1327,7 @@ final class AppStore: ObservableObject {
         triggerGridRefresh()
         
         // 扫描完成后刷新缓存
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             self?.refreshCacheAfterFolderOperation()
         }
     }
@@ -1380,7 +1380,7 @@ final class AppStore: ObservableObject {
         
         if targetPage == currentPages - 1 {
             // 拖拽到新页面，延迟压缩以确保应用位置稳定
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 self.compactItemsWithinPages()
                 self.triggerGridRefresh()
             }

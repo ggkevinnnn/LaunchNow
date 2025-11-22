@@ -39,6 +39,8 @@ struct LaunchpadView: View {
     @State private var draggingItem: LaunchpadItem?
     @State private var dragPreviewPosition: CGPoint = .zero
     @State private var dragPreviewScale: CGFloat = 1.2
+    @State private var dragPreviewOpacity: Double = 1.0
+    @State private var isSettlingDrop: Bool = false
     @State private var pendingDropIndex: Int? = nil
     @StateObject private var pageFlipManager = PageFlipManager()
     @State private var folderHoverCandidateIndex: Int? = nil
@@ -290,8 +292,8 @@ struct LaunchpadView: View {
                                                 )
                                             }
                                         }
-                                        .animation(LNAnimations.gridUpdate, value: pendingDropIndex)
-                                        .animation(LNAnimations.gridUpdate, value: appStore.gridRefreshTrigger)
+                                        .animation(LNAnimations.springFast, value: pendingDropIndex)
+                                        .animation(LNAnimations.springFast, value: appStore.gridRefreshTrigger)
                                         .id("grid_\(index)_\(appStore.gridRefreshTrigger.uuidString)")
                                         .frame(maxHeight: .infinity, alignment: .top)
                                     }
@@ -307,6 +309,7 @@ struct LaunchpadView: View {
                             if let draggingItem {
                                 DragPreviewItem(item: draggingItem, iconSize: iconSize, labelWidth: columnWidth * 0.9, scale: dragPreviewScale)
                                     .position(x: dragPreviewPosition.x, y: dragPreviewPosition.y)
+                                    .opacity(dragPreviewOpacity)
                                     .zIndex(100)
                                     .allowsHitTesting(false)
                             }
@@ -550,9 +553,7 @@ struct LaunchpadView: View {
     
     private func launchApp(_ app: AppInfo) {
         AppDelegate.shared?.hideWindow()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            NSWorkspace.shared.open(app.url)
-        }
+        NSWorkspace.shared.open(app.url)
     }
     
     private func handleItemTap(_ item: LaunchpadItem) {
@@ -649,10 +650,11 @@ struct LaunchpadView: View {
     }
 
     private func finalizeHandoffDrag() {
+        isSettlingDrop = true
         guard let dragging = draggingItem else { return }
         defer {
             if let monitor = handoffEventMonitor { NSEvent.removeMonitor(monitor); handoffEventMonitor = nil }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 draggingItem = nil
                 pendingDropIndex = nil
                 clampSelection()
@@ -669,6 +671,8 @@ struct LaunchpadView: View {
                 appStore.saveAllOrder()
                 // 触发网格刷新，确保拖拽手势被正确重新添加
                 appStore.triggerGridRefresh()
+                isSettlingDrop = false
+                dragPreviewOpacity = 1.0
             }
         }
         // 在接力拖拽模式下，落点时再计算目标索引，过程中不展示吸附
@@ -687,6 +691,9 @@ struct LaunchpadView: View {
             }
         }
 
+        withAnimation(LNAnimations.springFast) {
+            dragPreviewOpacity = 0.0
+        }
         // 使用统一的拖拽结束处理逻辑
         finalizeDragOperation(containerSize: currentContainerSize, columnWidth: currentColumnWidth, appHeight: currentAppHeight, iconSize: currentIconSize)
         
@@ -997,7 +1004,9 @@ extension LaunchpadView {
                 let isDraggingThisTile = (draggingItem == item)
 
                 base
-                    .opacity(isDraggingThisTile ? 0 : 1)
+                    .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : 1)
+                    .animation(LNAnimations.itemAppear, value: isSettlingDrop)
+                    .animation(LNAnimations.itemAppear, value: pendingDropIndex)
                     .allowsHitTesting(!isDraggingThisTile)
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 2, coordinateSpace: .named("grid"))
@@ -1009,18 +1018,6 @@ extension LaunchpadView {
                                 
                                 // 使用统一的拖拽结束处理逻辑
                                 finalizeDragOperation(containerSize: containerSize, columnWidth: columnWidth, appHeight: appHeight, iconSize: iconSize)
-
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-                                    draggingItem = nil
-                                    pendingDropIndex = nil
-                                    clampSelection()
-                                    appStore.cleanupUnusedNewPage()
-                                    appStore.removeEmptyPages()
-                                    appStore.pruneEmptyFolders()
-                                    
-                                    // 确保拖拽操作完成后立即保存
-                                    appStore.saveAllOrder()
-                                }
                             }
                     )
             } else {
@@ -1049,7 +1046,8 @@ extension LaunchpadView {
             return pageItems.firstIndex(of: item) ?? (globalIndex % config.itemsPerPage)
         }()
         
-        return GeometryUtils.cellOrigin(for: displayedOffsetInPage,
+        let verticalOffset = config.isFullscreen ? (currentContainerSize.height * config.topPadding) : 0
+        let base = GeometryUtils.cellOrigin(for: displayedOffsetInPage,
                                       containerSize: containerSize,
                                       pageIndex: pageIndex,
                                       columnWidth: columnWidth,
@@ -1059,6 +1057,7 @@ extension LaunchpadView {
                                       rowSpacing: config.rowSpacing,
                                       pageSpacing: config.pageSpacing,
                                       currentPage: appStore.currentPage)
+        return CGPoint(x: base.x, y: base.y + verticalOffset)
     }
 
     private func cellCenter(for globalIndex: Int,
@@ -1096,7 +1095,10 @@ extension LaunchpadView {
         guard pages.indices.contains(pageIndex) else { return nil }
         let pageItems = pages[pageIndex]
         
-        guard let offsetInPage = GeometryUtils.indexAt(point: point,
+        let verticalOffset = config.isFullscreen ? (currentContainerSize.height * config.topPadding) : 0
+        let adjustedPoint = CGPoint(x: point.x, y: point.y - verticalOffset)
+        
+        guard let offsetInPage = GeometryUtils.indexAt(point: adjustedPoint,
                                                       containerSize: containerSize,
                                                       pageIndex: pageIndex,
                                                       columnWidth: columnWidth,
@@ -1407,7 +1409,7 @@ extension LaunchpadView {
         // 如果缓存无效，触发重新扫描
         if !AppCacheManager.shared.isCacheValid {
     
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 self.appStore.performInitialScanIfNeeded()
             }
         }
@@ -1435,6 +1437,7 @@ extension LaunchpadView {
     // 统一的拖拽结束处理逻辑（普通拖拽与接力拖拽共用）
     private func finalizeDragOperation(containerSize: CGSize, columnWidth: CGFloat, appHeight: CGFloat, iconSize: CGFloat) {
         guard let dragging = draggingItem else { return }
+        isSettlingDrop = true
         
         // Option 模式：如果没有成功创建/加入文件夹，则撤销放置并回弹
         if appStore.isOptionFolderMode {
@@ -1451,12 +1454,18 @@ extension LaunchpadView {
                     withAnimation(LNAnimations.springFast) {
                         dragPreviewPosition = targetCenter
                         dragPreviewScale = 1.0
+                        dragPreviewOpacity = 0.0
                     }
                 }
-                // 结束后清理并返回，不进行任何移动
-                appStore.isDragCreatingFolder = false
-                appStore.folderCreationTarget = nil
-                pendingDropIndex = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    draggingItem = nil
+                    pendingDropIndex = nil
+                    appStore.isDragCreatingFolder = false
+                    appStore.folderCreationTarget = nil
+                    isSettlingDrop = false
+                    dragPreviewOpacity = 1.0
+                    clampSelection()
+                }
                 return
             }
         }
@@ -1475,6 +1484,7 @@ extension LaunchpadView {
                         withAnimation(LNAnimations.springFast) {
                             dragPreviewPosition = targetCenter
                             dragPreviewScale = 1.0
+                            dragPreviewOpacity = 0.0
                         }
                     }
                 } else {
@@ -1488,9 +1498,18 @@ extension LaunchpadView {
                         withAnimation(LNAnimations.springFast) {
                             dragPreviewPosition = targetCenter
                             dragPreviewScale = 1.0
+                            dragPreviewOpacity = 0.0
                         }
                     }
                 }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    draggingItem = nil
+                    pendingDropIndex = nil
+                    isSettlingDrop = false
+                    dragPreviewOpacity = 1.0
+                    clampSelection()
+                }
+                return
             } else {
                 if let hoveringIndex = indexAt(point: dragPreviewPosition,
                                                in: containerSize,
@@ -1508,7 +1527,16 @@ extension LaunchpadView {
                     withAnimation(LNAnimations.springFast) {
                         dragPreviewPosition = targetCenter
                         dragPreviewScale = 1.0
+                        dragPreviewOpacity = 0.0
                     }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        draggingItem = nil
+                        pendingDropIndex = nil
+                        isSettlingDrop = false
+                        dragPreviewOpacity = 1.0
+                        clampSelection()
+                    }
+                    return
                 }
             }
             appStore.isDragCreatingFolder = false
@@ -1535,6 +1563,7 @@ extension LaunchpadView {
             withAnimation(LNAnimations.springFast) {
                 dragPreviewPosition = targetCenter
                 dragPreviewScale = 1.0
+                dragPreviewOpacity = 0.0
             }
             
             if targetPage == sourcePage {
@@ -1552,15 +1581,26 @@ extension LaunchpadView {
                     appStore.items = newItems
                 }
                 appStore.saveAllOrder()
-                
-                // 同页内拖拽结束后也进行压缩，确保empty项目移动到页面末尾
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    appStore.compactItemsWithinPages()
-                }
             } else {
                 // 跨页拖拽：使用级联插入逻辑
                 appStore.moveItemAcrossPagesWithCascade(item: dragging, to: finalIndex)
             }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                draggingItem = nil
+                pendingDropIndex = nil
+                isSettlingDrop = false
+                dragPreviewOpacity = 1.0
+                clampSelection()
+                appStore.cleanupUnusedNewPage()
+                appStore.removeEmptyPages()
+                appStore.pruneEmptyFolders()
+                appStore.saveAllOrder()
+                if targetPage == sourcePage {
+                    appStore.compactItemsWithinPages()
+                }
+            }
+            
         } else {
             // 兜底逻辑：如果没有有效的目标索引，将应用放置到当前页的末尾
             if let draggingIndex = filteredItems.firstIndex(of: dragging) {
@@ -1570,6 +1610,18 @@ extension LaunchpadView {
                 
                 // 使用级联插入确保应用能正确放置
                 appStore.moveItemAcrossPagesWithCascade(item: dragging, to: targetIndex)
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    draggingItem = nil
+                    pendingDropIndex = nil
+                    isSettlingDrop = false
+                    dragPreviewOpacity = 1.0
+                    clampSelection()
+                    appStore.cleanupUnusedNewPage()
+                    appStore.removeEmptyPages()
+                    appStore.pruneEmptyFolders()
+                    appStore.saveAllOrder()
+                }
             }
         }
     }

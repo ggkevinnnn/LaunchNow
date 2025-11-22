@@ -19,11 +19,15 @@ struct FolderView: View {
     @State private var draggingApp: AppInfo? = nil
     @State private var dragPreviewPosition: CGPoint = .zero
     @State private var dragPreviewScale: CGFloat = 1.2
+    @State private var dragPreviewOpacity: Double = 1.0
+    @State private var isSettlingDrop: Bool = false
     @State private var pendingDropIndex: Int? = nil
     @State private var scrollOffsetY: CGFloat = 0
     @State private var outOfBoundsBeganAt: Date? = nil
     @State private var hasHandedOffDrag: Bool = false
+    @State private var lastDroppedAppID: String? = nil
     private let outOfBoundsDwell: TimeInterval = 0.0
+    private let unifiedAnim = LNAnimations.springFast
     
     let onClose: () -> Void
     let onLaunchApp: (AppInfo) -> Void
@@ -199,8 +203,8 @@ struct FolderView: View {
                     }
                 }
                 
-                .animation(LNAnimations.gridUpdate, value: pendingDropIndex)
-                .animation(LNAnimations.gridUpdate, value: folder.apps)
+                .animation(LNAnimations.itemAppear, value: pendingDropIndex)
+                .animation(LNAnimations.itemAppear, value: folder.apps)
                 .id(forceRefreshTrigger) // 使用forceRefreshTrigger强制刷新应用网格
                 .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
                 .background(
@@ -226,6 +230,7 @@ struct FolderView: View {
                                 labelWidth: labelWidth,
                                 scale: dragPreviewScale)
                     .position(x: dragPreviewPosition.x, y: dragPreviewPosition.y)
+                    .opacity(dragPreviewOpacity)
                     .zIndex(100)
                     .allowsHitTesting(false)
             }
@@ -308,7 +313,10 @@ extension FolderView {
         let isDraggingThisTile = (draggingApp == app)
 
         base
-            .opacity(isDraggingThisTile ? 0 : 1)
+            .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : ((lastDroppedAppID == app.id) ? 0 : 1))
+            .animation(LNAnimations.itemAppear, value: lastDroppedAppID)
+            .animation(LNAnimations.itemAppear, value: isSettlingDrop)
+            .animation(LNAnimations.itemAppear, value: pendingDropIndex)
             .allowsHitTesting(!isDraggingThisTile)
             .animation(LNAnimations.springFast, value: isSelected)
             .simultaneousGesture(
@@ -319,7 +327,11 @@ extension FolderView {
                         
                         if draggingApp == nil {
                             var tx = Transaction(); tx.disablesAnimations = true
-                            withTransaction(tx) { draggingApp = app }
+                            withTransaction(tx) {
+                                draggingApp = app
+                                dragPreviewOpacity = 1.0
+                                isSettlingDrop = false
+                            }
                             isKeyboardNavigationActive = false // 禁用键盘导航
 
                             // 让拖拽预览中心与指针位置一致，避免任何偏移
@@ -346,7 +358,7 @@ extension FolderView {
                                 // 清理内部拖拽状态并关闭文件夹
                                 draggingApp = nil
                                 outOfBoundsBeganAt = nil
-                                withAnimation(LNAnimations.springFast) {
+                                withAnimation(unifiedAnim) {
                                     onClose()
                                 }
                                 return
@@ -379,11 +391,13 @@ extension FolderView {
                         if isEditingName { return }
                         
                         guard let dragging = draggingApp else { return }
+                        isSettlingDrop = true
                         defer {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
                                 draggingApp = nil
                                 pendingDropIndex = nil
-                                // 拖拽结束后不自动恢复键盘导航，保持一致体验
+                                isSettlingDrop = false
+                                dragPreviewOpacity = 1.0
                             }
                         }
 
@@ -401,9 +415,10 @@ extension FolderView {
                                                           containerSize: containerSize,
                                                           columnWidth: columnWidth,
                                                           appHeight: appHeight)
-                            withAnimation(LNAnimations.dragPreview) {
+                            withAnimation(unifiedAnim) {
                                 dragPreviewPosition = targetCenter
                                 dragPreviewScale = 1.0
+                                dragPreviewOpacity = 0.0
                             }
                             if let from = folder.apps.firstIndex(of: dragging) {
                                 var apps = folder.apps
@@ -414,6 +429,13 @@ extension FolderView {
                                 apps.insert(dragging, at: clamped)
                                 folder.apps = apps
                                 appStore.saveAllOrder()
+                                
+                                // 触发落点图标的柔和淡入效果（与外部一致）
+                                lastDroppedAppID = dragging.id
+                                // 短暂延迟后将其清空，使不透明度从 0 -> 1 并按 itemAppear 动画过渡
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                                    lastDroppedAppID = nil
+                                }
                                 
                                 // 文件夹内拖拽结束后也触发压缩，确保主界面的empty项目移动到页面末尾
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
