@@ -563,7 +563,9 @@ struct LaunchpadView: View {
     
     private func launchApp(_ app: AppInfo) {
         AppDelegate.shared?.hideWindow()
-        NSWorkspace.shared.open(app.url)
+        DispatchQueue.main.asyncAfter(deadline: .now()) {
+            NSWorkspace.shared.open(app.url)
+        }
     }
     
     private func handleItemTap(_ item: LaunchpadItem) {
