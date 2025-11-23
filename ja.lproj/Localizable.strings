@@ -2,63 +2,63 @@
 //  Localizable.strings
 //  LaunchNow
 //
-//  Created by gzk on 10/2/25.
+//  Created by endianoia on 11/22/25.
 //
 
 //SettingsView
-"Style" = "Classic Launchpad (Fullscreen)";
-"ShowAppName" = "Show app name";
-"ScrollSensitivity" = "Scrolling sensitivity";
-"Low" = "Low";
-"High" = "High";
-"Export" = "Export Data";
-"Import" = "Import Data";
-"Refresh" = "Refresh";
-"ResetLayout" = "Reset Layout";
-"ConfirmReset" = "Confirm to reset layout?";
-"Reset" = "Reset";
-"Cancel" = "Cancel";
-"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
-"Quit" = "Quit";
-"DisplayedLanguage" = "Displayed language";
-"Language" = "Language...";
-"ShowWelcome" = "Show Introduction";
-"Confirm" = "Confirm";
-"CheckUpdates" = "Check for Updates";
+"Style" = "クラシック Launchpad (全画面)";
+"ShowAppName" = "アプリ名の表示";
+"ScrollSensitivity" = "スクロールの感度";
+"Low" = "低い";
+"High" = "高い";
+"Export" = "データのエクスポート";
+"Import" = "データのインポート";
+"Refresh" = "更新";
+"ResetLayout" = "レイアウトのリセット";
+"ConfirmReset" = "本当にレイアウトのリセットをしますか？";
+"Reset" = "リセット";
+"Cancel" = "キャンセル";
+"ResetAlert" = "完全にレイアウトをリセットします: 全てのフォルダーの削除、保存した並び順の消去と、全てのアプリケーションの再読み込みをします。全ての変更は失われます。";
+"Quit" = "終了";
+"DisplayedLanguage" = "表示言語";
+"Language" = "言語...";
+"ShowWelcome" = "操作説明の表示";
+"Confirm" = "確定";
+"CheckUpdates" = "更新の確認";
 
 //LaunchpadView
-"Search" = "Search";
-"NoAppsFound" = "No Apps Found";
+"Search" = "検索";
+"NoAppsFound" = "アプリがありません";
 
 //FolderView
-"FolderName" = "FolderName";
+"FolderName" = "フォルダー名";
 
 //FolderInfo
-"Untitled" = "Untitled";
+"Untitled" = "無題";
 
 //WelcomeView
-"Welcome" = "Welcome to LaunchNow";
-"Drag" = "Drag app icons to customize app sorts.";
-"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
-"Scroll" = "Scroll to turn to other pages.";
-"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
-"StartNow" = "Start Now";
-"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
+"Welcome" = "LaunchNowの説明";
+"Drag" = "アプリアイコンをドラッグし、アプリの並び順を編集します。";
+"Hover" = "アプリをドラッグしほかのアプリやフォルダーに重ねると、フォルダーが作成されるか、フォルダーにアプリが追加されます。オプションキーを押すとロックモードが有効になります(ほかのアプリへの操作は制限され、単にフォルダーの作成とフォルダーへのアプリ追加のみが可能です。)。";
+"Scroll" = "ほかのページにスクロールします。";
+"RunOnBackground" = "LaunchNowをドックに追加するか、ほかの方法でアプリケーションウインドウを開く事で、自動的にバックグラウンドで動作します。";
+"StartNow" = "今すぐ起動";
+"Keyboard" = "キーボードナビゲーションがサポートされています、TabかShift+Tabで別のページに移動、矢印キーでアプリを選択し, Returnでアプリを起動します。";
 
 //Updater
-"FoundNewVersion" = "Found New Version: ";
-"GoToGithub" = "Go to Github to download the latest version";
-"AlreadyLatest" = "Already the latest version: ";
-"Enjoy" = "Enjoy!";
+"FoundNewVersion" = "新しいバージョンがあります: ";
+"GoToGithub" = "Githubから最新バージョンを取得";
+"AlreadyLatest" = "既に最新バージョンです: ";
+"Enjoy" = "エンジョイ！";
 
 //new
-"CustomizeScannedFolder" = "Customize scanned folder";
-"Add" = "Add";
-"AddFolder" = "Add folder";
-"ResetToDefault" = "Reset to default";
-"NoFolders" = "No folders";
+"CustomizeScannedFolder" = "読み込みフォルダーの編集";
+"Add" = "追加";
+"AddFolder" = "フォルダーの追加";
+"ResetToDefault" = "規定にリセット";
+"NoFolders" = "フォルダー無し";
 
-"IconSize" = "Icon size";
-"Small" = "Small";
-"Large" = "Large";
-"DefaultSize" = "Default size";
+"IconSize" = "アイコンサイズ";
+"Small" = "小";
+"Large" = "大";
+"DefaultSize" = "規定のサイズ";
