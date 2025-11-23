@@ -42,3 +42,5 @@ Dutch translation by @OABsoftware
 Russian translation by @Leoxoo
 
 Bulgarian translation by Трифон Иванов
+
+Japanese translation by @endianoia
