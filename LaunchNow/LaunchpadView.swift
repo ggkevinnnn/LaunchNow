@@ -295,8 +295,8 @@ struct LaunchpadView: View {
                                                 )
                                             }
                                         }
-                                        .animation(LNAnimations.gridUpdate, value: pendingDropIndex)
-                                        .animation(LNAnimations.gridUpdate, value: appStore.gridRefreshTrigger)
+                                        .animation(LNAnimations.springFast, value: pendingDropIndex)
+                                        .animation(LNAnimations.springFast, value: appStore.gridRefreshTrigger)
                                         .id("grid_\(index)_\(appStore.gridRefreshTrigger.uuidString)")
                                         .frame(maxHeight: .infinity, alignment: .top)
                                     }
@@ -354,6 +354,13 @@ struct LaunchpadView: View {
                         .task {
                             await MainActor.run {
                                 captureGridGeometry(geo, columnWidth: columnWidth, appHeight: appHeight, iconSize: iconSize)
+                            }
+                        }
+                        // 新增：当图标缩放改变时，立刻重算 currentIconSize，推动文件夹内部图标即时刷新
+                        .onChange(of: appStore.iconScale) {
+                            let newSize = min(currentColumnWidth, currentAppHeight) * CGFloat(max(0.4, min(appStore.iconScale, 1.6)))
+                            if newSize > 0 {
+                                currentIconSize = newSize
                             }
                         }
                     }
@@ -1592,7 +1599,7 @@ extension LaunchpadView {
                 let moving = pageSlice.remove(at: localFrom)
                 pageSlice.insert(moving, at: localTo)
                 newItems.replaceSubrange(pageStart..<pageEnd, with: pageSlice)
-                withAnimation(LNAnimations.gridUpdate) {
+                withAnimation(LNAnimations.springFast) {
                     appStore.items = newItems
                 }
                 appStore.saveAllOrder()
@@ -1720,9 +1727,9 @@ extension LaunchpadView {
             targetIndex: hoveringIndex,
             containerSize: currentContainerSize,
             pageIndex: appStore.currentPage,
-            columnWidth: columnWidth,
-            appHeight: appHeight,
-            iconSize: iconSize
+            columnWidth: currentColumnWidth,
+            appHeight: currentAppHeight,
+            iconSize: currentIconSize
         )
 
         guard let dragging = draggingItem else { return }
