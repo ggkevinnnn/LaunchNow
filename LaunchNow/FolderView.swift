@@ -27,7 +27,7 @@ struct FolderView: View {
     @State private var hasHandedOffDrag: Bool = false
     @State private var lastDroppedAppID: String? = nil
     private let outOfBoundsDwell: TimeInterval = 0.0
-    private let unifiedAnim = LNAnimations.springFast
+    private let unifiedAnim = LNAnimations.dragSnap
     
     let onClose: () -> Void
     let onLaunchApp: (AppInfo) -> Void

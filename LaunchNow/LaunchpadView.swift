@@ -61,6 +61,9 @@ struct LaunchpadView: View {
     @State private var dragOriginalIndex: Int? = nil
     @State private var flagsMonitor: Any? = nil
     
+    // 新增：外部网格落点淡入标记
+    @State private var lastDroppedItemID: String? = nil
+    
     // 性能优化：使用静态缓存避免状态修改问题
     private static var geometryCache: [String: CGPoint] = [:]
     private static var lastGeometryUpdate: Date = Date.distantPast
@@ -292,8 +295,8 @@ struct LaunchpadView: View {
                                                 )
                                             }
                                         }
-                                        .animation(LNAnimations.springFast, value: pendingDropIndex)
-                                        .animation(LNAnimations.springFast, value: appStore.gridRefreshTrigger)
+                                        .animation(LNAnimations.gridUpdate, value: pendingDropIndex)
+                                        .animation(LNAnimations.gridUpdate, value: appStore.gridRefreshTrigger)
                                         .id("grid_\(index)_\(appStore.gridRefreshTrigger.uuidString)")
                                         .frame(maxHeight: .infinity, alignment: .top)
                                     }
@@ -691,7 +694,7 @@ struct LaunchpadView: View {
             }
         }
 
-        withAnimation(LNAnimations.springFast) {
+        withAnimation(LNAnimations.dragSnap) {
             dragPreviewOpacity = 0.0
         }
         // 使用统一的拖拽结束处理逻辑
@@ -998,12 +1001,17 @@ extension LaunchpadView {
             .matchedGeometryEffect(id: item.id, in: reorderNamespace)
             // 保持稳定的视图身份，避免在文件夹更新后中断拖拽手势
             .id(item.id)
-
+            
+            // 统一：对“刚落下的项”做淡入（无论是否可拖拽/是否在搜索模式）
+            let baseWithFade = base
+                .opacity((lastDroppedItemID == item.id) ? 0 : 1)
+                .animation(LNAnimations.itemAppear, value: lastDroppedItemID)
 
             if appStore.searchText.isEmpty && !isFolderOpen {
                 let isDraggingThisTile = (draggingItem == item)
 
-                base
+                baseWithFade
+                    // 拖拽中的该 tile 隐形
                     .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : 1)
                     .animation(LNAnimations.itemAppear, value: isSettlingDrop)
                     .animation(LNAnimations.itemAppear, value: pendingDropIndex)
@@ -1021,7 +1029,7 @@ extension LaunchpadView {
                             }
                     )
             } else {
-                base
+                baseWithFade
             }
         }
     }
@@ -1451,7 +1459,7 @@ extension LaunchpadView {
                                                   pageIndex: pageOf(index: original),
                                                   columnWidth: columnWidth,
                                                   appHeight: appHeight)
-                    withAnimation(LNAnimations.springFast) {
+                    withAnimation(LNAnimations.dragSnap) {
                         dragPreviewPosition = targetCenter
                         dragPreviewScale = 1.0
                         dragPreviewOpacity = 0.0
@@ -1481,7 +1489,7 @@ extension LaunchpadView {
                                                       pageIndex: appStore.currentPage,
                                                       columnWidth: columnWidth,
                                                       appHeight: appHeight)
-                        withAnimation(LNAnimations.springFast) {
+                        withAnimation(LNAnimations.dragSnap) {
                             dragPreviewPosition = targetCenter
                             dragPreviewScale = 1.0
                             dragPreviewOpacity = 0.0
@@ -1495,13 +1503,14 @@ extension LaunchpadView {
                                                       pageIndex: appStore.currentPage,
                                                       columnWidth: columnWidth,
                                                       appHeight: appHeight)
-                        withAnimation(LNAnimations.springFast) {
+                        withAnimation(LNAnimations.dragSnap) {
                             dragPreviewPosition = targetCenter
                             dragPreviewScale = 1.0
                             dragPreviewOpacity = 0.0
                         }
                     }
                 }
+                // 文件夹创建完成后不需要额外淡入
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     draggingItem = nil
                     pendingDropIndex = nil
@@ -1524,7 +1533,7 @@ extension LaunchpadView {
                                                   pageIndex: appStore.currentPage,
                                                   columnWidth: columnWidth,
                                                   appHeight: appHeight)
-                    withAnimation(LNAnimations.springFast) {
+                    withAnimation(LNAnimations.dragSnap) {
                         dragPreviewPosition = targetCenter
                         dragPreviewScale = 1.0
                         dragPreviewOpacity = 0.0
@@ -1560,10 +1569,16 @@ extension LaunchpadView {
                                           pageIndex: finalPage,
                                           columnWidth: columnWidth,
                                           appHeight: appHeight)
-            withAnimation(LNAnimations.springFast) {
+            withAnimation(LNAnimations.dragSnap) {
                 dragPreviewPosition = targetCenter
                 dragPreviewScale = 1.0
                 dragPreviewOpacity = 0.0
+            }
+            
+            // 设置“落点淡入”的标记
+            lastDroppedItemID = dragging.id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                lastDroppedItemID = nil
             }
             
             if targetPage == sourcePage {
@@ -1577,7 +1592,7 @@ extension LaunchpadView {
                 let moving = pageSlice.remove(at: localFrom)
                 pageSlice.insert(moving, at: localTo)
                 newItems.replaceSubrange(pageStart..<pageEnd, with: pageSlice)
-                withAnimation(LNAnimations.springFast) {
+                withAnimation(LNAnimations.gridUpdate) {
                     appStore.items = newItems
                 }
                 appStore.saveAllOrder()
@@ -1607,6 +1622,12 @@ extension LaunchpadView {
                 let currentPageStart = appStore.currentPage * config.itemsPerPage
                 let currentPageEnd = min(currentPageStart + config.itemsPerPage, appStore.items.count)
                 let targetIndex = currentPageEnd
+                
+                // 设置“落点淡入”的标记
+                lastDroppedItemID = dragging.id
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                    lastDroppedItemID = nil
+                }
                 
                 // 使用级联插入确保应用能正确放置
                 appStore.moveItemAcrossPagesWithCascade(item: dragging, to: targetIndex)

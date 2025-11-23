@@ -3,6 +3,7 @@ import AppKit
 import Combine
 import SwiftData
 import UniformTypeIdentifiers
+import SwiftUI
 
 final class AppStore: ObservableObject {
     @Published var showWelcomeSheet: Bool = false
@@ -1127,17 +1128,20 @@ final class AppStore: ObservableObject {
         } else {
             newItems[safeIndex] = .folder(folder)
         }
-        self.items = newItems
-        // 单页内自动补位：将该页内的空槽移到页尾
-        compactItemsWithinPages()
+        
+        // 动画事务：更新 items、压缩页面、触发刷新
+        withAnimation(LNAnimations.gridUpdate) {
+            self.items = newItems
+            // 单页内自动补位：将该页内的空槽移到页尾
+            self.compactItemsWithinPages()
+            // 触发网格视图刷新，确保界面立即更新
+            self.triggerGridRefresh()
+        }
 
         // 触发文件夹更新，通知所有相关视图刷新图标
         DispatchQueue.main.async { [weak self] in
             self?.triggerFolderUpdate()
         }
-        
-        // 触发网格视图刷新，确保界面立即更新
-        triggerGridRefresh()
         
         // 刷新缓存，确保搜索时能找到新创建文件夹内的应用
         refreshCacheAfterFolderOperation()
@@ -1169,23 +1173,25 @@ final class AppStore: ObservableObject {
                 replacedAtLeastOnce = true
             }
         }
-        items = newItems
         
-        // 单页内自动补位，确保页面结构合理
-        compactItemsWithinPages()
-        
-        // 确保 items 中对应的文件夹条目也更新为最新内容，便于搜索立即可见
-        for idx in items.indices {
-            if case .folder(let f) = items[idx], f.id == updatedFolder.id {
-                items[idx] = .folder(updatedFolder)
+        // 同步更新 items 中的该文件夹条目，便于搜索立即可见
+        for idx in newItems.indices {
+            if case .folder(let f) = newItems[idx], f.id == updatedFolder.id {
+                newItems[idx] = .folder(updatedFolder)
             }
+        }
+        
+        // 动画事务：更新 items、压缩页面、触发刷新
+        withAnimation(LNAnimations.gridUpdate) {
+            items = newItems
+            // 单页内自动补位，确保页面结构合理
+            compactItemsWithinPages()
+            // 触发网格视图刷新，确保界面立即更新
+            triggerGridRefresh()
         }
         
         // 立即触发文件夹更新，通知所有相关视图刷新图标和名称
         triggerFolderUpdate()
-        
-        // 触发网格视图刷新，确保界面立即更新
-        triggerGridRefresh()
         
         // 刷新缓存，确保搜索时能找到新添加的应用
         refreshCacheAfterFolderOperation()
@@ -1240,21 +1246,21 @@ final class AppStore: ObservableObject {
             }
             // 不进行页面压缩，避免拖拽中槽位跳动
         } else {
-            // 非拖拽场景：保持原有回填逻辑
-            if let emptyIndex = items.firstIndex(where: { if case .empty = $0 { return true } else { return false } }) {
-                items[emptyIndex] = .app(app)
-            } else {
-                items.append(.app(app))
+            // 非拖拽场景：保持原有回填逻辑（动画包裹）
+            withAnimation(LNAnimations.gridUpdate) {
+                if let emptyIndex = items.firstIndex(where: { if case .empty = $0 { return true } else { return false } }) {
+                    items[emptyIndex] = .app(app)
+                } else {
+                    items.append(.app(app))
+                }
+                // 直接进行页面内压缩，保持页面完整性
+                compactItemsWithinPages()
+                triggerGridRefresh()
             }
-            // 直接进行页面内压缩，保持页面完整性
-            compactItemsWithinPages()
         }
         
         // 立即触发文件夹更新，通知所有相关视图刷新图标和名称
         triggerFolderUpdate()
-        
-        // 触发网格视图刷新，确保界面立即更新
-        triggerGridRefresh()
         
         // 刷新缓存，确保搜索时能找到从文件夹移除的应用（在重建之后刷新）
         refreshCacheAfterFolderOperation()
@@ -2323,4 +2329,3 @@ final class AppStore: ObservableObject {
         }
     }
 }
-
