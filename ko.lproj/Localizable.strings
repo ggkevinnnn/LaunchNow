@@ -1,0 +1,64 @@
+//
+//  Localizable.strings
+//  LaunchNow
+//
+//  Created by gzk on 10/2/25.
+//
+
+//SettingsView
+"Style" = "Classic Launchpad (Fullscreen)";
+"ShowAppName" = "Show app name";
+"ScrollSensitivity" = "Scrolling sensitivity";
+"Low" = "Low";
+"High" = "High";
+"Export" = "Export Data";
+"Import" = "Import Data";
+"Refresh" = "Refresh";
+"ResetLayout" = "Reset Layout";
+"ConfirmReset" = "Confirm to reset layout?";
+"Reset" = "Reset";
+"Cancel" = "Cancel";
+"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
+"Quit" = "Quit";
+"DisplayedLanguage" = "Displayed language";
+"Language" = "Language...";
+"ShowWelcome" = "Show Introduction";
+"Confirm" = "Confirm";
+"CheckUpdates" = "Check for Updates";
+
+//LaunchpadView
+"Search" = "Search";
+"NoAppsFound" = "No Apps Found";
+
+//FolderView
+"FolderName" = "FolderName";
+
+//FolderInfo
+"Untitled" = "Untitled";
+
+//WelcomeView
+"Welcome" = "Welcome to LaunchNow";
+"Drag" = "Drag app icons to customize app sorts.";
+"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
+"Scroll" = "Scroll to turn to other pages.";
+"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
+"StartNow" = "Start Now";
+"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
+
+//Updater
+"FoundNewVersion" = "Found New Version: ";
+"GoToGithub" = "Go to Github to download the latest version";
+"AlreadyLatest" = "Already the latest version: ";
+"Enjoy" = "Enjoy!";
+
+//new
+"CustomizeScannedFolder" = "Customize scanned folder";
+"Add" = "Add";
+"AddFolder" = "Add folder";
+"ResetToDefault" = "Reset to default";
+"NoFolders" = "No folders";
+
+"IconSize" = "Icon size";
+"Small" = "Small";
+"Large" = "Large";
+"DefaultSize" = "Default size";
