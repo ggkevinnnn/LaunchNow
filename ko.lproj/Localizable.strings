@@ -2,63 +2,63 @@
 //  Localizable.strings
 //  LaunchNow
 //
-//  Created by gzk on 10/2/25.
+//  Created by D-KoLee on 12/9/25.
 //
 
 //SettingsView
-"Style" = "Classic Launchpad (Fullscreen)";
-"ShowAppName" = "Show app name";
-"ScrollSensitivity" = "Scrolling sensitivity";
-"Low" = "Low";
-"High" = "High";
-"Export" = "Export Data";
-"Import" = "Import Data";
-"Refresh" = "Refresh";
-"ResetLayout" = "Reset Layout";
-"ConfirmReset" = "Confirm to reset layout?";
-"Reset" = "Reset";
-"Cancel" = "Cancel";
-"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
-"Quit" = "Quit";
-"DisplayedLanguage" = "Displayed language";
-"Language" = "Language...";
-"ShowWelcome" = "Show Introduction";
-"Confirm" = "Confirm";
-"CheckUpdates" = "Check for Updates";
+"Style" = "클래식 Launchpad (전체화면)";
+"ShowAppName" = "앱 이름 표시";
+"ScrollSensitivity" = "스크롤 민감도";
+"Low" = "낮음";
+"High" = "높음";
+"Export" = "내보내기";
+"Import" = "가져오기";
+"Refresh" = "새로 고침";
+"ResetLayout" = "레이아웃 초기화";
+"ConfirmReset" = "레이아웃을 초기화하시겠습니까?";
+"Reset" = "초기화";
+"Cancel" = "취소";
+"ResetAlert" = "이 작업은 레이아웃을 초기 상태로 되돌립니다. 모든 폴더가 제거되고, 폴더의 순서가 초기화되며, 모든 앱이 다시 스캔됩니다. 모든 사용자 설정이 사라집니다.";
+"Quit" = "종료하기";
+"DisplayedLanguage" = "표시 언어";
+"Language" = "언어...";
+"ShowWelcome" = "사용법 보기";
+"Confirm" = "확인";
+"CheckUpdates" = "업데이트 확인";
 
 //LaunchpadView
-"Search" = "Search";
-"NoAppsFound" = "No Apps Found";
+"Search" = "검색";
+"NoAppsFound" = "검색된 앱이 없습니다.";
 
 //FolderView
-"FolderName" = "FolderName";
+"FolderName" = "폴더 이름";
 
 //FolderInfo
-"Untitled" = "Untitled";
+"Untitled" = "제목 없음";
 
 //WelcomeView
-"Welcome" = "Welcome to LaunchNow";
-"Drag" = "Drag app icons to customize app sorts.";
-"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
-"Scroll" = "Scroll to turn to other pages.";
-"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
-"StartNow" = "Start Now";
-"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
+"Welcome" = "LaunchNow에 오신 것을 환영합니다";
+"Drag" = "앱 아이콘을 드래그하여 앱의 순서를 바꿀 수 있습니다.";
+"Hover" = "앱을 다른 앱이나 폴더 위에 올려놓으면, 폴더를 생성하거나 앱을 폴더에 추가할 수 있습니다. OPTION 키를 누르고 있으면 잠금 모드가 활성화됩니다. 이 경우, 다른 앱은 움직이지 않고 폴더를 생성하거나 앱을 폴더에 추가할 수 있습니다.";
+"Scroll" = "스크롤하여 다른 페이지로 이동하세요.";
+"RunOnBackground" = "자동 백그라운드 실행하기: Dock에 LaunchNow를 추가하거나, 다른 방법으로 앱 창을 실행 상태로 둘 수 있습니다.";
+"StartNow" = "바로 시작하기";
+"Keyboard" = "키보드를 이용해 탐색할 수 있습니다. Tab 또는 Shift+Tab를 눌러 다른 페이지로 이동합니다. 방향키를 눌러 선택한 앱을 변경하고, Return(Enter) 키를 눌러 앱을 실행할 수 있습니다.";
 
 //Updater
-"FoundNewVersion" = "Found New Version: ";
-"GoToGithub" = "Go to Github to download the latest version";
-"AlreadyLatest" = "Already the latest version: ";
-"Enjoy" = "Enjoy!";
+"FoundNewVersion" = "새 버전이 출시되었습니다:";
+"GoToGithub" = "최신 버전을 다운로드하려면 Github로 이동하세요";
+"AlreadyLatest" = "새로운 업데이트가 없습니다: ";
+"Enjoy" = "즐거운 시간 보내세요!";
 
 //new
-"CustomizeScannedFolder" = "Customize scanned folder";
-"Add" = "Add";
-"AddFolder" = "Add folder";
-"ResetToDefault" = "Reset to default";
-"NoFolders" = "No folders";
+"CustomizeScannedFolder" = "스캔할 폴더를 지정";
+"Add" = "추가";
+"AddFolder" = "폴더 추가";
+"ResetToDefault" = "기본값으로 되돌리기";
+"NoFolders" = "폴더 없음";
 
-"IconSize" = "Icon size";
-"Small" = "Small";
-"Large" = "Large";
-"DefaultSize" = "Default size";
+"IconSize" = "아이콘 크기";
+"Small" = "작게";
+"Large" = "크게";
+"DefaultSize" = "기본 크기";

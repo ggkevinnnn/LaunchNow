@@ -44,3 +44,5 @@ Russian translation by @Leoxoo
 Bulgarian translation by Трифон Иванов
 
 Japanese translation by @endianoia
+
+Korean translation by @D-KoLee
