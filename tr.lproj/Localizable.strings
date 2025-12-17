@@ -1,0 +1,64 @@
+//
+//  Localizable.strings (tr)
+//  LaunchNow
+//
+//  Created by wd006 on 12/17/25.
+//
+
+//SettingsView
+"Style" = "Stil: Klasik Launchpad (Tam Ekran)";
+"ShowAppName" = "Uygulama adını göster";
+"ScrollSensitivity" = "Kaydırma hassasiyeti";
+"Low" = "Düşük";
+"High" = "Yüksek";
+"Export" = "Verileri Dışa Aktar";
+"Import" = "Verileri İçe Aktar";
+"Refresh" = "Yenile";
+"ResetLayout" = "Düzeni Sıfırla";
+"ConfirmReset" = "Düzen sıfırlansın mı?";
+"Reset" = "Sıfırla";
+"Cancel" = "Vazgeç";
+"ResetAlert" = "Bu işlem düzeni tamamen sıfırlayacak: tüm klasörler silinecek, kayıtlı sıralama temizlenecek ve tüm uygulamalar yeniden taranacak. Tüm özelleştirmeler kaybolacak.";
+"Quit" = "Çıkış";
+"DisplayedLanguage" = "Görüntüleme dili";
+"Language" = "Dil...";
+"ShowWelcome" = "Tanıtımı Göster";
+"Confirm" = "Onayla";
+"CheckUpdates" = "Güncellemeleri Denetle";
+
+//LaunchpadView
+"Search" = "Ara";
+"NoAppsFound" = "Uygulama Bulunamadı";
+
+//FolderView
+"FolderName" = "KlasörAdı";
+
+//FolderInfo
+"Untitled" = "Adsız";
+
+//WelcomeView
+"Welcome" = "LaunchNow'a Hoş Geldiniz";
+"Drag" = "Sıralamayı özelleştirmek için uygulama simgelerini sürükleyin.";
+"Hover" = "Klasör oluşturmak veya bir klasöre eklemek için uygulamayı başka bir uygulamanın/klasörün üzerine sürükleyip bekletin. Kilit modunu etkinleştirmek için OPTION tuşuna basılı tutun (bu modda diğer uygulamaların yeri değişmez, sadece klasör oluşturabilir veya klasöre ekleme yapabilirsiniz).";
+"Scroll" = "Diğer sayfalara geçmek için kaydırın.";
+"RunOnBackground" = "Arka planda otomatik çalıştır: LaunchNow'ı Dock'a ekleyin veya uygulama penceresini açmak için diğer özel yöntemleri kullanın.";
+"StartNow" = "Şimdi Başla";
+"Keyboard" = "Klavye ile gezinme desteklenir: Sayfa değiştirmek için Tab veya Shift+Tab, uygulama seçmek için Yön tuşlarını ve uygulamayı açmak için Return tuşunu kullanın.";
+
+//Updater
+"FoundNewVersion" = "Yeni Sürüm Bulundu: ";
+"GoToGithub" = "Son sürümü indirmek için Github'a gidin";
+"AlreadyLatest" = "Zaten en güncel sürüm: ";
+"Enjoy" = "Keyfini çıkarın!";
+
+//new
+"CustomizeScannedFolder" = "Taranan klasörü özelleştir";
+"Add" = "Ekle";
+"AddFolder" = "Klasör ekle";
+"ResetToDefault" = "Varsayılana sıfırla";
+"NoFolders" = "Klasör yok";
+
+"IconSize" = "Simge boyutu";
+"Small" = "Küçük";
+"Large" = "Büyük";
+"DefaultSize" = "Varsayılan boyut";
