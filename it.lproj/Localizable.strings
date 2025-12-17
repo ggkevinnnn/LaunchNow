@@ -1,0 +1,64 @@
+//
+//  Localizable.strings (it)
+//  LaunchNow
+//
+//  Created by wd006 on 12/17/25.
+//
+
+//SettingsView
+"Style" = "Stile: Launchpad Classico (A tutto schermo)";
+"ShowAppName" = "Mostra nome app";
+"ScrollSensitivity" = "Sensibilità scorrimento";
+"Low" = "Bassa";
+"High" = "Alta";
+"Export" = "Esporta dati";
+"Import" = "Importa dati";
+"Refresh" = "Aggiorna";
+"ResetLayout" = "Ripristina layout";
+"ConfirmReset" = "Confermi il ripristino del layout?";
+"Reset" = "Ripristina";
+"Cancel" = "Annulla";
+"ResetAlert" = "Questa operazione ripristinerà completamente il layout: rimuoverà tutte le cartelle, cancellerà l'ordine salvato e scansionerà nuovamente tutte le applicazioni. Tutte le personalizzazioni andranno perse.";
+"Quit" = "Esci";
+"DisplayedLanguage" = "Lingua visualizzata";
+"Language" = "Lingua...";
+"ShowWelcome" = "Mostra introduzione";
+"Confirm" = "Conferma";
+"CheckUpdates" = "Controlla aggiornamenti";
+
+//LaunchpadView
+"Search" = "Cerca";
+"NoAppsFound" = "Nessuna app trovata";
+
+//FolderView
+"FolderName" = "NomeCartella";
+
+//FolderInfo
+"Untitled" = "Senza titolo";
+
+//WelcomeView
+"Welcome" = "Benvenuto in LaunchNow";
+"Drag" = "Trascina le icone delle app per personalizzare l'ordine.";
+"Hover" = "Trascina un'app e soffermati su un'altra app/cartella per creare una cartella o aggiungere l'app alla cartella. Tieni premuto il tasto OPZIONE per abilitare la modalità blocco (il movimento delle altre app sarà impedito, potrai solo creare cartelle o aggiungere app).";
+"Scroll" = "Scorri per passare ad altre pagine.";
+"RunOnBackground" = "Esegui automaticamente in background: aggiungi LaunchNow al Dock o usa altri metodi personalizzati per aprire la finestra dell'applicazione.";
+"StartNow" = "Inizia ora";
+"Keyboard" = "La navigazione da tastiera è supportata: usa Tab o Shift+Tab per cambiare pagina, le frecce direzionali per scegliere l'app e Invio per aprire l'app.";
+
+//Updater
+"FoundNewVersion" = "Nuova versione trovata: ";
+"GoToGithub" = "Vai su Github per scaricare l'ultima versione";
+"AlreadyLatest" = "È già l'ultima versione: ";
+"Enjoy" = "Buon divertimento!";
+
+//new
+"CustomizeScannedFolder" = "Personalizza cartella scansionata";
+"Add" = "Aggiungi";
+"AddFolder" = "Aggiungi cartella";
+"ResetToDefault" = "Ripristina predefinito";
+"NoFolders" = "Nessuna cartella";
+
+"IconSize" = "Dimensione icona";
+"Small" = "Piccola";
+"Large" = "Grande";
+"DefaultSize" = "Dimensione predefinita";
