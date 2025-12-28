@@ -10,6 +10,23 @@ struct FolderInfo: Identifiable, Equatable {
         return cache
     }()
 
+    // Notification when a folder icon finishes rendering and updates the cache
+    static let folderIconDidUpdate = Notification.Name("FolderIconDidUpdate")
+
+    // Fast placeholder to avoid blocking UI while real icon is rendered
+    private static func placeholderFolderIcon(of side: CGFloat) -> NSImage {
+        let normalizedSide = max(16, side)
+        let base = NSImage(named: NSImage.folderName) ?? NSWorkspace.shared.icon(forFileType: NSFileTypeForHFSTypeCode(OSType(kGenericFolderIcon)))
+        // Resize to exact requested side
+        let size = NSSize(width: normalizedSide, height: normalizedSide)
+        let img = NSImage(size: size)
+        img.lockFocus()
+        defer { img.unlockFocus() }
+        NSGraphicsContext.current?.imageInterpolation = .high
+        base.draw(in: NSRect(origin: .zero, size: size), from: .zero, operation: .sourceOver, fraction: 0.8)
+        return img
+    }
+
     // Build a cache key that reflects folder id, requested side, and the first 4 app ids
     private func folderIconCacheKey(side: CGFloat) -> String {
         let normalizedSide = max(16, side)
@@ -38,12 +55,21 @@ struct FolderInfo: Identifiable, Equatable {
     func icon(of side: CGFloat) -> NSImage {
         let normalizedSide = max(16, side)
         let key = folderIconCacheKey(side: normalizedSide) as NSString
+        // Fast path: cached image exists
         if let cached = Self.iconCache.object(forKey: key) {
             return cached
         }
-        let icon = renderFolderIcon(side: normalizedSide)
-        Self.iconCache.setObject(icon, forKey: key)
-        return icon
+        // Return placeholder immediately to keep UI responsive
+        let placeholder = Self.placeholderFolderIcon(of: normalizedSide)
+        Self.iconCache.setObject(placeholder, forKey: key)
+        // Render real icon asynchronously to avoid blocking the click/open action
+        DispatchQueue.main.async { [apps, id] in
+            // Recompute and overwrite with the final rendered icon
+            let rendered = self.renderFolderIcon(side: normalizedSide)
+            Self.iconCache.setObject(rendered, forKey: key)
+            NotificationCenter.default.post(name: FolderInfo.folderIconDidUpdate, object: id)
+        }
+        return placeholder
     }
 
     private func renderFolderIcon(side: CGFloat) -> NSImage {
@@ -263,3 +289,4 @@ final class PageEntryData {
         self.updatedAt = updatedAt
     }
 }
+

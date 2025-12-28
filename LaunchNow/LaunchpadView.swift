@@ -465,7 +465,7 @@ struct LaunchpadView: View {
                             preferredIconSize: currentIconSize,
                             onClose: {
                                 let closingFolder = appStore.openFolder
-                                withAnimation(LNAnimations.springFast) {
+                                withAnimation(LNAnimations.itemAppear) {
                                     appStore.openFolder = nil
                                 }
                                 // 关闭后将键盘导航选中项切换到该文件夹
@@ -574,7 +574,7 @@ struct LaunchpadView: View {
         case .app(let app):
             launchApp(app)
         case .folder(let folder):
-            withAnimation(LNAnimations.springFast) {
+            withAnimation(LNAnimations.itemAppear) {
                 appStore.openFolder = folder
             }
         case .empty:
@@ -703,7 +703,7 @@ struct LaunchpadView: View {
             }
         }
 
-        withAnimation(LNAnimations.dragSnap) {
+        withAnimation(LNAnimations.springFast) {
             dragPreviewOpacity = 0.0
         }
         // 使用统一的拖拽结束处理逻辑
@@ -1468,7 +1468,7 @@ extension LaunchpadView {
                                                   pageIndex: pageOf(index: original),
                                                   columnWidth: columnWidth,
                                                   appHeight: appHeight)
-                    withAnimation(LNAnimations.dragSnap) {
+                    withAnimation(LNAnimations.springFast) {
                         dragPreviewPosition = targetCenter
                         dragPreviewScale = 1.0
                         dragPreviewOpacity = 0.0
@@ -1498,7 +1498,7 @@ extension LaunchpadView {
                                                       pageIndex: appStore.currentPage,
                                                       columnWidth: columnWidth,
                                                       appHeight: appHeight)
-                        withAnimation(LNAnimations.dragSnap) {
+                        withAnimation(LNAnimations.springFast) {
                             dragPreviewPosition = targetCenter
                             dragPreviewScale = 1.0
                             dragPreviewOpacity = 0.0
@@ -1512,7 +1512,7 @@ extension LaunchpadView {
                                                       pageIndex: appStore.currentPage,
                                                       columnWidth: columnWidth,
                                                       appHeight: appHeight)
-                        withAnimation(LNAnimations.dragSnap) {
+                        withAnimation(LNAnimations.springFast) {
                             dragPreviewPosition = targetCenter
                             dragPreviewScale = 1.0
                             dragPreviewOpacity = 0.0
@@ -1542,7 +1542,7 @@ extension LaunchpadView {
                                                   pageIndex: appStore.currentPage,
                                                   columnWidth: columnWidth,
                                                   appHeight: appHeight)
-                    withAnimation(LNAnimations.dragSnap) {
+                    withAnimation(LNAnimations.springFast) {
                         dragPreviewPosition = targetCenter
                         dragPreviewScale = 1.0
                         dragPreviewOpacity = 0.0
@@ -1578,7 +1578,7 @@ extension LaunchpadView {
                                           pageIndex: finalPage,
                                           columnWidth: columnWidth,
                                           appHeight: appHeight)
-            withAnimation(LNAnimations.dragSnap) {
+            withAnimation(LNAnimations.springFast) {
                 dragPreviewPosition = targetCenter
                 dragPreviewScale = 1.0
                 dragPreviewOpacity = 0.0

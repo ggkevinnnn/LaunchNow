@@ -73,6 +73,7 @@ struct LaunchpadItemButton: View {
                     }()
                     
                     if isFolderIcon {
+                        
                         // 增加文件夹的检测区域，使用更大的响应区域
                         RoundedRectangle(cornerRadius: iconSize * 0.2)
                             .foregroundStyle(Color.clear)

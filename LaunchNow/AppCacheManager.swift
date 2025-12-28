@@ -13,8 +13,8 @@ final class AppCacheManager: ObservableObject {
     private let cacheLock = NSLock()
     
     // MARK: - 缓存配置
-    private let maxIconCacheSize = 200
-    private let maxAppInfoCacheSize = 300
+    private let maxIconCacheSize = 500
+    private let maxAppInfoCacheSize = 500
     private var iconCacheOrder: [String] = [] // 改为可变数组，实现真正的LRU
     
     // MARK: - 缓存状态
