@@ -1,64 +1,64 @@
 //
-//  Localizable.strings
+//  Localizable.strings (it)
 //  LaunchNow
 //
-//  Created by gzk on 10/2/25.
+//  Created by wd006 on 12/17/25.
 //
 
 //SettingsView
-"Style" = "Classic Launchpad (Fullscreen)";
-"ShowAppName" = "Show app name";
-"ScrollSensitivity" = "Scrolling sensitivity";
-"Low" = "Low";
-"High" = "High";
-"Export" = "Export Data";
-"Import" = "Import Data";
-"Refresh" = "Refresh";
-"ResetLayout" = "Reset Layout";
-"ConfirmReset" = "Confirm to reset layout?";
-"Reset" = "Reset";
-"Cancel" = "Cancel";
-"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
-"Quit" = "Quit";
-"DisplayedLanguage" = "Displayed language";
-"Language" = "Language...";
-"ShowWelcome" = "Show Introduction";
-"Confirm" = "Confirm";
-"CheckUpdates" = "Check for Updates";
+"Style" = "Stile: Launchpad Classico (A tutto schermo)";
+"ShowAppName" = "Mostra nome app";
+"ScrollSensitivity" = "Sensibilità scorrimento";
+"Low" = "Bassa";
+"High" = "Alta";
+"Export" = "Esporta dati";
+"Import" = "Importa dati";
+"Refresh" = "Aggiorna";
+"ResetLayout" = "Ripristina layout";
+"ConfirmReset" = "Confermi il ripristino del layout?";
+"Reset" = "Ripristina";
+"Cancel" = "Annulla";
+"ResetAlert" = "Questa operazione ripristinerà completamente il layout: rimuoverà tutte le cartelle, cancellerà l'ordine salvato e scansionerà nuovamente tutte le applicazioni. Tutte le personalizzazioni andranno perse.";
+"Quit" = "Esci";
+"DisplayedLanguage" = "Lingua visualizzata";
+"Language" = "Lingua...";
+"ShowWelcome" = "Mostra introduzione";
+"Confirm" = "Conferma";
+"CheckUpdates" = "Controlla aggiornamenti";
 
 //LaunchpadView
-"Search" = "Search";
-"NoAppsFound" = "No Apps Found";
+"Search" = "Cerca";
+"NoAppsFound" = "Nessuna app trovata";
 
 //FolderView
-"FolderName" = "FolderName";
+"FolderName" = "NomeCartella";
 
 //FolderInfo
-"Untitled" = "Untitled";
+"Untitled" = "Senza titolo";
 
 //WelcomeView
-"Welcome" = "Welcome to LaunchNow";
-"Drag" = "Drag app icons to customize app sorts.";
-"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
-"Scroll" = "Scroll to turn to other pages.";
-"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
-"StartNow" = "Start Now";
-"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
+"Welcome" = "Benvenuto in LaunchNow";
+"Drag" = "Trascina le icone delle app per personalizzare l'ordine.";
+"Hover" = "Trascina un'app e soffermati su un'altra app/cartella per creare una cartella o aggiungere l'app alla cartella. Tieni premuto il tasto OPZIONE per abilitare la modalità blocco (il movimento delle altre app sarà impedito, potrai solo creare cartelle o aggiungere app).";
+"Scroll" = "Scorri per passare ad altre pagine.";
+"RunOnBackground" = "Esegui automaticamente in background: aggiungi LaunchNow al Dock o usa altri metodi personalizzati per aprire la finestra dell'applicazione.";
+"StartNow" = "Inizia ora";
+"Keyboard" = "La navigazione da tastiera è supportata: usa Tab o Shift+Tab per cambiare pagina, le frecce direzionali per scegliere l'app e Invio per aprire l'app.";
 
 //Updater
-"FoundNewVersion" = "Found New Version: ";
-"GoToGithub" = "Go to Github to download the latest version";
-"AlreadyLatest" = "Already the latest version: ";
-"Enjoy" = "Enjoy!";
+"FoundNewVersion" = "Nuova versione trovata: ";
+"GoToGithub" = "Vai su Github per scaricare l'ultima versione";
+"AlreadyLatest" = "È già l'ultima versione: ";
+"Enjoy" = "Buon divertimento!";
 
 //new
-"CustomizeScannedFolder" = "Customize scanned folder";
-"Add" = "Add";
-"AddFolder" = "Add folder";
-"ResetToDefault" = "Reset to default";
-"NoFolders" = "No folders";
+"CustomizeScannedFolder" = "Personalizza cartella scansionata";
+"Add" = "Aggiungi";
+"AddFolder" = "Aggiungi cartella";
+"ResetToDefault" = "Ripristina predefinito";
+"NoFolders" = "Nessuna cartella";
 
-"IconSize" = "Icon size";
-"Small" = "Small";
-"Large" = "Large";
-"DefaultSize" = "Default size";
+"IconSize" = "Dimensione icona";
+"Small" = "Piccola";
+"Large" = "Grande";
+"DefaultSize" = "Dimensione predefinita";

@@ -1,64 +1,64 @@
 //
-//  Localizable.strings
+//  Localizable.strings (tr)
 //  LaunchNow
 //
-//  Created by gzk on 10/2/25.
+//  Created by wd006 on 12/17/25.
 //
 
 //SettingsView
-"Style" = "Classic Launchpad (Fullscreen)";
-"ShowAppName" = "Show app name";
-"ScrollSensitivity" = "Scrolling sensitivity";
-"Low" = "Low";
-"High" = "High";
-"Export" = "Export Data";
-"Import" = "Import Data";
-"Refresh" = "Refresh";
-"ResetLayout" = "Reset Layout";
-"ConfirmReset" = "Confirm to reset layout?";
-"Reset" = "Reset";
-"Cancel" = "Cancel";
-"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
-"Quit" = "Quit";
-"DisplayedLanguage" = "Displayed language";
-"Language" = "Language...";
-"ShowWelcome" = "Show Introduction";
-"Confirm" = "Confirm";
-"CheckUpdates" = "Check for Updates";
+"Style" = "Stil: Klasik Launchpad (Tam Ekran)";
+"ShowAppName" = "Uygulama adını göster";
+"ScrollSensitivity" = "Kaydırma hassasiyeti";
+"Low" = "Düşük";
+"High" = "Yüksek";
+"Export" = "Verileri Dışa Aktar";
+"Import" = "Verileri İçe Aktar";
+"Refresh" = "Yenile";
+"ResetLayout" = "Düzeni Sıfırla";
+"ConfirmReset" = "Düzen sıfırlansın mı?";
+"Reset" = "Sıfırla";
+"Cancel" = "Vazgeç";
+"ResetAlert" = "Bu işlem düzeni tamamen sıfırlayacak: tüm klasörler silinecek, kayıtlı sıralama temizlenecek ve tüm uygulamalar yeniden taranacak. Tüm özelleştirmeler kaybolacak.";
+"Quit" = "Çıkış";
+"DisplayedLanguage" = "Görüntüleme dili";
+"Language" = "Dil...";
+"ShowWelcome" = "Tanıtımı Göster";
+"Confirm" = "Onayla";
+"CheckUpdates" = "Güncellemeleri Denetle";
 
 //LaunchpadView
-"Search" = "Search";
-"NoAppsFound" = "No Apps Found";
+"Search" = "Ara";
+"NoAppsFound" = "Uygulama Bulunamadı";
 
 //FolderView
-"FolderName" = "FolderName";
+"FolderName" = "KlasörAdı";
 
 //FolderInfo
-"Untitled" = "Untitled";
+"Untitled" = "Adsız";
 
 //WelcomeView
-"Welcome" = "Welcome to LaunchNow";
-"Drag" = "Drag app icons to customize app sorts.";
-"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
-"Scroll" = "Scroll to turn to other pages.";
-"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
-"StartNow" = "Start Now";
-"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
+"Welcome" = "LaunchNow'a Hoş Geldiniz";
+"Drag" = "Sıralamayı özelleştirmek için uygulama simgelerini sürükleyin.";
+"Hover" = "Klasör oluşturmak veya bir klasöre eklemek için uygulamayı başka bir uygulamanın/klasörün üzerine sürükleyip bekletin. Kilit modunu etkinleştirmek için OPTION tuşuna basılı tutun (bu modda diğer uygulamaların yeri değişmez, sadece klasör oluşturabilir veya klasöre ekleme yapabilirsiniz).";
+"Scroll" = "Diğer sayfalara geçmek için kaydırın.";
+"RunOnBackground" = "Arka planda otomatik çalıştır: LaunchNow'ı Dock'a ekleyin veya uygulama penceresini açmak için diğer özel yöntemleri kullanın.";
+"StartNow" = "Şimdi Başla";
+"Keyboard" = "Klavye ile gezinme desteklenir: Sayfa değiştirmek için Tab veya Shift+Tab, uygulama seçmek için Yön tuşlarını ve uygulamayı açmak için Return tuşunu kullanın.";
 
 //Updater
-"FoundNewVersion" = "Found New Version: ";
-"GoToGithub" = "Go to Github to download the latest version";
-"AlreadyLatest" = "Already the latest version: ";
-"Enjoy" = "Enjoy!";
+"FoundNewVersion" = "Yeni Sürüm Bulundu: ";
+"GoToGithub" = "Son sürümü indirmek için Github'a gidin";
+"AlreadyLatest" = "Zaten en güncel sürüm: ";
+"Enjoy" = "Keyfini çıkarın!";
 
 //new
-"CustomizeScannedFolder" = "Customize scanned folder";
-"Add" = "Add";
-"AddFolder" = "Add folder";
-"ResetToDefault" = "Reset to default";
-"NoFolders" = "No folders";
+"CustomizeScannedFolder" = "Taranan klasörü özelleştir";
+"Add" = "Ekle";
+"AddFolder" = "Klasör ekle";
+"ResetToDefault" = "Varsayılana sıfırla";
+"NoFolders" = "Klasör yok";
 
-"IconSize" = "Icon size";
-"Small" = "Small";
-"Large" = "Large";
-"DefaultSize" = "Default size";
+"IconSize" = "Simge boyutu";
+"Small" = "Küçük";
+"Large" = "Büyük";
+"DefaultSize" = "Varsayılan boyut";
