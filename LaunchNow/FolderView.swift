@@ -88,12 +88,7 @@ struct FolderView: View {
         .padding()
         .background(
             Group {
-                if isScrolling {
-                    // lighter during scroll to reduce blur cost
-                    Color.clear.background(.ultraThinMaterial)
-                } else {
-                    Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 30))
-                }
+                Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 30))
             }
         )
         .transition(.opacity)
