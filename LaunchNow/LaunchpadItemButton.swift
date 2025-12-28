@@ -95,7 +95,7 @@ struct LaunchpadItemButton: View {
                 }
                 .contentShape(Rectangle()) // 确保整个区域可以接收事件
                 .scaleEffect(isSelected ? 1.2 : effectiveScale)
-                .animation(LNAnimations.springFast, value: isHovered || isSelected) // 为文件夹添加轻微延迟，防止过早移动
+                .animation(LNAnimations.gridUpdate, value: isHovered || isSelected) // 为文件夹添加轻微延迟，防止过早移动
 
                 if appStore.showAppNameBelowIcon {
                     Text(item.name)

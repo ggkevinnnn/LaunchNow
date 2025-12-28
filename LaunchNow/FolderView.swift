@@ -43,7 +43,7 @@ struct FolderView: View {
     @State private var isScrolling: Bool = false
     @State private var lastScrollMark: Date = .distantPast
     private let outOfBoundsDwell: TimeInterval = 0.0
-    private let unifiedAnim = LNAnimations.springFast
+    private let unifiedAnim = LNAnimations.gridUpdate
     
     let onClose: () -> Void
     let onLaunchApp: (AppInfo) -> Void
@@ -234,7 +234,7 @@ struct FolderView: View {
                     }
                 }
                 .transaction { t in if isScrolling { t.animation = nil } }
-                .animation(isScrolling ? nil : LNAnimations.itemAppear, value: visualApps.map(\.id))
+                .animation((isScrolling || isSettlingDrop) ? nil : LNAnimations.gridUpdate, value: visualApps.map(\.id))
                 .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
                 .background(
                     GeometryReader { proxy in
@@ -381,7 +381,7 @@ extension FolderView {
             .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : ((lastDroppedAppID == app.id) ? 0 : 1))
             .animation(isScrolling ? nil : LNAnimations.itemAppear, value: lastDroppedAppID)
             .animation(isScrolling ? nil : LNAnimations.itemAppear, value: isSettlingDrop)
-            .animation(isScrolling ? nil : LNAnimations.itemAppear, value: pendingDropIndex)
+            .animation((isScrolling || isSettlingDrop) ? nil : LNAnimations.itemAppear, value: pendingDropIndex)
             .allowsHitTesting(!isDraggingThisTile)
             .contentTransition(.opacity)
             .transaction { t in t.animation = nil }
@@ -425,9 +425,7 @@ extension FolderView {
                                 // 清理内部拖拽状态并关闭文件夹
                                 draggingApp = nil
                                 outOfBoundsBeganAt = nil
-                                withAnimation(unifiedAnim) {
-                                    onClose()
-                                }
+                                onClose()
                                 return
                             }
                         } else {
@@ -494,8 +492,6 @@ extension FolderView {
                                 let insertIndex = finalIndex
                                 let clamped = min(max(0, insertIndex), apps.count)
                                 apps.insert(dragging, at: clamped)
-                                folder.apps = apps
-                                appStore.saveAllOrder()
                                 
                                 // 触发落点图标的柔和淡入效果（与外部一致）
                                 lastDroppedAppID = dragging.id
@@ -682,3 +678,4 @@ private extension View {
         if condition { transform(self) } else { self }
     }
 }
+
