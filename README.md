@@ -46,3 +46,5 @@ Bulgarian translation by Трифон Иванов
 Japanese translation by @endianoia
 
 Korean translation by @D-KoLee
+
+Italian, Turkish translation by @wd006

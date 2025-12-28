@@ -78,6 +78,9 @@ struct LaunchpadView: View {
     @State private var wheelLastDirection: Int = 0
     @State private var wheelLastFlipAt: Date? = nil
     private let wheelFlipCooldown: TimeInterval = 0.15
+    
+    // 跟手翻页：交互偏移（仅在精确滚动手势进行中使用）
+    @State private var interactivePageOffset: CGFloat = 0
 
     private var isFolderOpen: Bool { appStore.openFolder != nil }
     
@@ -268,7 +271,7 @@ struct LaunchpadView: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        let hStackOffset = -CGFloat(appStore.currentPage) * effectivePageWidth
+                        let hStackOffset = -CGFloat(appStore.currentPage) * effectivePageWidth + interactivePageOffset
                         ZStack(alignment: .topLeading) {
                             // 内容
                             HStack(spacing: config.pageSpacing) {
@@ -1206,26 +1209,50 @@ extension LaunchpadView {
             return
         }
 
-        // Trackpad precise scroll: accumulate and flip after threshold
-        // Ignore momentum phase to ensure only one flip per gesture
+        // Trackpad precise scroll: interactive follow + settle
         if isMomentum { return }
         let delta = abs(deltaX) >= abs(deltaY) ? deltaX : -deltaY // vertical swipes map to horizontal
         switch phase {
         case .began:
             isUserSwiping = true
             accumulatedScrollX = 0
+            interactivePageOffset = 0
         case .changed:
             isUserSwiping = true
             accumulatedScrollX += delta
+            // 将累计滚动直接映射为页面容器偏移（与原版Launchpad类似）
+            var proposed = accumulatedScrollX
+            let atFirstPage = appStore.currentPage <= 0
+            let atLastPage = appStore.currentPage >= max(pages.count - 1, 0)
+            // 橡皮筋函数：limit为单页宽度
+            func rubberband(_ x: CGFloat, limit: CGFloat) -> CGFloat {
+                let a: CGFloat = 0.55 // 弹性系数
+                let d = abs(x)
+                let result = (a * d) / (d + limit)
+                return result * (x >= 0 ? 1 : -1) * limit
+            }
+            if atFirstPage && proposed > 0 {
+                proposed = rubberband(proposed, limit: pageWidth)
+            } else if atLastPage && proposed < 0 {
+                proposed = rubberband(proposed, limit: pageWidth)
+            } else {
+                // 中间页：限制在一页范围内，避免跨越两页
+                proposed = max(-pageWidth, min(pageWidth, proposed))
+            }
+            interactivePageOffset = proposed
         case .ended, .cancelled:
-            // 使灵敏度越大阈值越小，以符合直觉（与鼠标滚轮一致）
-            // 归一到默认值 0.15：threshold = pageWidth * (0.0225 / sensitivity)
-            // 当 sensitivity=0.15 时，阈值为 0.15*pageWidth；越大则更灵敏（阈值更小）
+            // 灵敏度越大阈值越小（与原逻辑一致）
             let threshold = pageWidth * (0.0225 / max(appStore.scrollSensitivity, 0.001))
             if accumulatedScrollX <= -threshold {
+                // 向左翻到下一页
                 navigateToNextPage()
             } else if accumulatedScrollX >= threshold {
+                // 向右翻到上一页
                 navigateToPreviousPage()
+            }
+            // 手势结束后将交互偏移平滑归零
+            withAnimation(LNAnimations.springFast) {
+                interactivePageOffset = 0
             }
             accumulatedScrollX = 0
             isUserSwiping = false

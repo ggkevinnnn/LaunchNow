@@ -1,6 +1,19 @@
 import SwiftUI
 import AppKit
 
+private struct ConditionalMatchedGeometry: ViewModifier {
+    let isActive: Bool
+    let id: String
+    var ns: Namespace.ID
+    func body(content: Content) -> some View {
+        if isActive {
+            content.matchedGeometryEffect(id: id, in: ns)
+        } else {
+            content
+        }
+    }
+}
+
 struct FolderView: View {
     @ObservedObject var appStore: AppStore
     @Binding var folder: FolderInfo
@@ -26,6 +39,9 @@ struct FolderView: View {
     @State private var outOfBoundsBeganAt: Date? = nil
     @State private var hasHandedOffDrag: Bool = false
     @State private var lastDroppedAppID: String? = nil
+    @State private var deferGridUntilOpened: Bool = true
+    @State private var isScrolling: Bool = false
+    @State private var lastScrollMark: Date = .distantPast
     private let outOfBoundsDwell: TimeInterval = 0.0
     private let unifiedAnim = LNAnimations.springFast
     
@@ -58,12 +74,29 @@ struct FolderView: View {
             
             // 应用网格区域
             GeometryReader { geo in
-                appGridSection(geometry: geo)
+                if deferGridUntilOpened {
+                    // 轻量占位，避免在打开瞬间进行大量布局与图片绘制
+                    ZStack {
+                        Color.clear
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    appGridSection(geometry: geo)
+                }
             }
         }
         .padding()
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 30))
-        .transition(LNAnimations.folderOpenTransition)
+        .background(
+            Group {
+                if isScrolling {
+                    // lighter during scroll to reduce blur cost
+                    Color.clear.background(.ultraThinMaterial)
+                } else {
+                    Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 30))
+                }
+            }
+        )
+        .transition(.opacity)
         .onTapGesture {
             // 当点击文件夹视图的非编辑区域时，如果正在编辑名称，则退出编辑模式
             if isEditingName {
@@ -82,6 +115,14 @@ struct FolderView: View {
             } else {
                 isKeyboardNavigationActive = false
             }
+            // 先立即显示轻量占位，待过渡结束后再加载网格，避免打开瞬间卡顿
+            var tx = Transaction(); tx.disablesAnimations = true
+            withTransaction(tx) { deferGridUntilOpened = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                withAnimation(LNAnimations.itemAppear) {
+                    deferGridUntilOpened = false
+                }
+            }
         }
         .onChange(of: isTextFieldFocused) { focused in
             if !focused && isEditingName {
@@ -90,26 +131,22 @@ struct FolderView: View {
         }
         .onChange(of: folder.apps) {
             clampSelection()
-            // 当应用列表变化时，强制刷新视图
-            forceRefreshTrigger = UUID()
+            // Removed forceRefreshTrigger = UUID()
         }
         .onChange(of: folder.name) {
             // 监听文件夹名称变化，确保界面立即更新
             if !isEditingName {
                 folderName = folder.name
-                // 强制刷新视图
-                forceRefreshTrigger = UUID()
+                // Removed forceRefreshTrigger = UUID()
             }
         }
         .onChange(of: appStore.folderUpdateTrigger) {
-            // 强制刷新文件夹视图，确保图标和名称显示最新状态
-            forceRefreshTrigger = UUID()
+            // Removed forceRefreshTrigger = UUID()
             // 触发视图重新渲染
             folderName = folder.name
         }
         .onChange(of: appStore.gridRefreshTrigger) {
-            // 强制刷新网格视图，确保应用图标和布局显示最新状态
-            forceRefreshTrigger = UUID()
+            // Removed forceRefreshTrigger = UUID()
             // 触发视图重新渲染
             folderName = folder.name
         }
@@ -161,7 +198,6 @@ struct FolderView: View {
                         .onTapGesture {
                             // 单击时不做任何操作，避免意外触发
                         }
-                        .id(forceRefreshTrigger) // 使用forceRefreshTrigger强制刷新
                 }
             }
             Spacer()
@@ -171,13 +207,13 @@ struct FolderView: View {
     
     @ViewBuilder
     private func appGridSection(geometry geo: GeometryProxy) -> some View {
-        // 初步估算（用当前列数）
-        let baseColumnWidth = computeColumnWidth(containerWidth: geo.size.width, columns: columnsCount)
-        let baseAppHeight = computeAppHeight(containerHeight: geo.size.height, columns: columnsCount)
-        let computedIconBase = min(baseColumnWidth, baseAppHeight) * 0.75
-        let iconSize: CGFloat = preferredIconSize ?? (computedIconBase * CGFloat(max(0.4, min(appStore.iconScale, 1.6))))
         // 固定为 6 列
         let desiredColumns = 6
+        let computedIconBase = min(
+            computeColumnWidth(containerWidth: geo.size.width, columns: desiredColumns),
+            computeAppHeight(containerHeight: geo.size.height, columns: desiredColumns)
+        ) * 0.75
+        let iconSize: CGFloat = preferredIconSize ?? (computedIconBase * CGFloat(max(0.4, min(appStore.iconScale, 1.6))))
         // 使用自适应列数重新计算尺寸
         let recomputedColumnWidth = computeColumnWidth(containerWidth: geo.size.width, columns: desiredColumns)
         let recomputedAppHeight = computeAppHeight(containerHeight: geo.size.height, columns: desiredColumns)
@@ -202,10 +238,8 @@ struct FolderView: View {
                         )
                     }
                 }
-                
-                .animation(LNAnimations.itemAppear, value: pendingDropIndex)
-                .animation(LNAnimations.itemAppear, value: folder.apps)
-                .id(forceRefreshTrigger) // 使用forceRefreshTrigger强制刷新应用网格
+                .transaction { t in if isScrolling { t.animation = nil } }
+                .animation(isScrolling ? nil : LNAnimations.itemAppear, value: visualApps.map(\.id))
                 .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
                 .background(
                     GeometryReader { proxy in
@@ -217,6 +251,22 @@ struct FolderView: View {
                 )
             }
             .scrollIndicators(.hidden)
+            .transaction { $0.animation = nil }
+            .simultaneousGesture(
+                DragGesture().onChanged { _ in
+                    let now = Date()
+                    if now.timeIntervalSince(lastScrollMark) > 0.05 {
+                        lastScrollMark = now
+                        if !isScrolling { isScrolling = true }
+                    }
+                }
+                .onEnded { _ in
+                    // give a small delay to allow deceleration to finish
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        isScrolling = false
+                    }
+                }
+            )
             .disabled(isEditingName) // 编辑状态下禁用滚动
             .onAppear { columnsCount = desiredColumns }
             .onChange(of: geo.size) {
@@ -233,11 +283,25 @@ struct FolderView: View {
                     .opacity(dragPreviewOpacity)
                     .zIndex(100)
                     .allowsHitTesting(false)
+                    .if(!isScrolling) { view in
+                        view.drawingGroup(opaque: false, colorMode: .extendedLinear)
+                    }
             }
         }
         .coordinateSpace(name: "folderGrid")
         .onPreferenceChange(FolderScrollOffsetPreferenceKey.self) { scrollOffset in
             scrollOffsetY = scrollOffset
+            let now = Date()
+            if now.timeIntervalSince(lastScrollMark) > 0.05 {
+                lastScrollMark = now
+                if !isScrolling { isScrolling = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                    // stop if no further updates
+                    if Date().timeIntervalSince(lastScrollMark) > 0.1 {
+                        isScrolling = false
+                    }
+                }
+            }
         }
     }
     
@@ -308,17 +372,25 @@ extension FolderView {
         )
         .environmentObject(appStore)
         .frame(height: appHeight)
-        .matchedGeometryEffect(id: app.id, in: reorderNamespaceFolder)
+        .modifier(
+            ConditionalMatchedGeometry(
+                isActive: draggingApp == nil && !isSettlingDrop && !isScrolling,
+                id: app.id,
+                ns: reorderNamespaceFolder
+            )
+        )
 
         let isDraggingThisTile = (draggingApp == app)
 
         base
             .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : ((lastDroppedAppID == app.id) ? 0 : 1))
-            .animation(LNAnimations.itemAppear, value: lastDroppedAppID)
-            .animation(LNAnimations.itemAppear, value: isSettlingDrop)
-            .animation(LNAnimations.itemAppear, value: pendingDropIndex)
+            .animation(isScrolling ? nil : LNAnimations.itemAppear, value: lastDroppedAppID)
+            .animation(isScrolling ? nil : LNAnimations.itemAppear, value: isSettlingDrop)
+            .animation(isScrolling ? nil : LNAnimations.itemAppear, value: pendingDropIndex)
             .allowsHitTesting(!isDraggingThisTile)
-            .animation(LNAnimations.springFast, value: isSelected)
+            .contentTransition(.opacity)
+            .transaction { t in t.animation = nil }
+            .animation(isScrolling ? nil : LNAnimations.springFast, value: isSelected)
             .simultaneousGesture(
                 DragGesture(minimumDistance: 2, coordinateSpace: .named("folderGrid"))
                     .onChanged { value in
@@ -609,3 +681,9 @@ extension FolderView {
     }
 }
 
+private extension View {
+    @ViewBuilder
+    func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition { transform(self) } else { self }
+    }
+}
