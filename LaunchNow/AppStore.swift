@@ -1771,7 +1771,7 @@ final class AppStore: ObservableObject {
     }
 
     // 触发文件夹更新，通知所有相关视图刷新图标
-    private func triggerFolderUpdate() {
+    func triggerFolderUpdate() {
         folderUpdateTrigger = UUID()
     }
     

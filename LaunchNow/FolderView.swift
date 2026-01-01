@@ -233,8 +233,7 @@ struct FolderView: View {
                         )
                     }
                 }
-                .transaction { t in if isScrolling { t.animation = nil } }
-                .animation((isScrolling || isSettlingDrop) ? nil : LNAnimations.gridUpdate, value: visualApps.map(\.id))
+                .animation(isSettlingDrop ? nil : LNAnimations.gridUpdate, value: visualApps.map(\.id))
                 .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
                 .background(
                     GeometryReader { proxy in
@@ -246,7 +245,6 @@ struct FolderView: View {
                 )
             }
             .scrollIndicators(.hidden)
-            .transaction { $0.animation = nil }
             .simultaneousGesture(
                 DragGesture().onChanged { _ in
                     let now = Date()
@@ -352,6 +350,8 @@ extension FolderView {
                               iconSize: CGFloat,
                               labelWidth: CGFloat,
                               isSelected: Bool) -> some View {
+        let isDraggingThisTile = (draggingApp == app)
+
         let base = LaunchpadItemButton(
             item: .app(app),
             iconSize: iconSize,
@@ -369,23 +369,20 @@ extension FolderView {
         .frame(height: appHeight)
         .modifier(
             ConditionalMatchedGeometry(
-                isActive: draggingApp == nil && !isSettlingDrop && !isScrolling,
+                isActive: !isSettlingDrop && !isDraggingThisTile,
                 id: app.id,
                 ns: reorderNamespaceFolder
             )
         )
 
-        let isDraggingThisTile = (draggingApp == app)
-
         base
             .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : ((lastDroppedAppID == app.id) ? 0 : 1))
-            .animation(isScrolling ? nil : LNAnimations.itemAppear, value: lastDroppedAppID)
-            .animation(isScrolling ? nil : LNAnimations.itemAppear, value: isSettlingDrop)
-            .animation((isScrolling || isSettlingDrop) ? nil : LNAnimations.itemAppear, value: pendingDropIndex)
+            .animation(LNAnimations.itemAppear, value: lastDroppedAppID)
+            .animation(LNAnimations.itemAppear, value: isSettlingDrop)
+            .animation(isSettlingDrop ? nil : LNAnimations.itemAppear, value: pendingDropIndex)
             .allowsHitTesting(!isDraggingThisTile)
             .contentTransition(.opacity)
-            .transaction { t in t.animation = nil }
-            .animation(isScrolling ? nil : LNAnimations.springFast, value: isSelected)
+            .animation(LNAnimations.springFast, value: isSelected)
             .simultaneousGesture(
                 DragGesture(minimumDistance: 2, coordinateSpace: .named("folderGrid"))
                     .onChanged { value in
@@ -492,6 +489,11 @@ extension FolderView {
                                 let insertIndex = finalIndex
                                 let clamped = min(max(0, insertIndex), apps.count)
                                 apps.insert(dragging, at: clamped)
+                                
+                                // 提交回绑定，驱动真实布局变化（与外部一致）
+                                withAnimation(unifiedAnim) {
+                                    folder.apps = apps
+                                }
                                 
                                 // 触发落点图标的柔和淡入效果（与外部一致）
                                 lastDroppedAppID = dragging.id
