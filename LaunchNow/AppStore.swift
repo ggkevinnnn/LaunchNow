@@ -1510,22 +1510,16 @@ final class AppStore: ObservableObject {
     // MARK: - 持久化：每页独立排序（新）+ 兼容旧版
     func loadAllOrder() {
         guard let modelContext else {
-            print("LaunchNow: ModelContext is nil, cannot load persisted order")
             return
         }
-        
-        print("LaunchNow: Attempting to load persisted order data...")
-        
+                
         // 优先尝试从新的"页-槽位"模型读取
         if loadOrderFromPageEntries(using: modelContext) {
-            print("LaunchNow: Successfully loaded order from PageEntryData")
             return
         }
         
-        print("LaunchNow: PageEntryData not found, trying legacy TopItemData...")
         // 回退：旧版全局顺序模型
         loadOrderFromLegacyTopItems(using: modelContext)
-        print("LaunchNow: Finished loading order from legacy data")
     }
 
     private func loadOrderFromPageEntries(using modelContext: ModelContext) -> Bool {
@@ -1700,20 +1694,15 @@ final class AppStore: ObservableObject {
 
     func saveAllOrder() {
         guard let modelContext else {
-            print("LaunchNow: ModelContext is nil, cannot save order")
             return
         }
         guard !items.isEmpty else {
-            print("LaunchNow: Items list is empty, skipping save")
             return
         }
-
-        print("LaunchNow: Saving order data for \(items.count) items...")
         
         // 写入新模型：按页-槽位
         do {
             let existing = try modelContext.fetch(FetchDescriptor<PageEntryData>())
-            print("LaunchNow: Found \(existing.count) existing entries, clearing...")
             for row in existing { modelContext.delete(row) }
 
             // 构建 folders 查找表
@@ -1757,7 +1746,6 @@ final class AppStore: ObservableObject {
                 }
             }
             try modelContext.save()
-            print("LaunchNow: Successfully saved order data")
             
             // 清理旧版表，避免占用空间（忽略错误）
             do {
@@ -1766,7 +1754,6 @@ final class AppStore: ObservableObject {
                 try? modelContext.save()
             } catch { }
         } catch {
-            print("LaunchNow: Error saving order data: \(error)")
         }
     }
 

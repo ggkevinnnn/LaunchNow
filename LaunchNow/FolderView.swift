@@ -1,19 +1,6 @@
 import SwiftUI
 import AppKit
 
-private struct ConditionalMatchedGeometry: ViewModifier {
-    let isActive: Bool
-    let id: String
-    var ns: Namespace.ID
-    func body(content: Content) -> some View {
-        if isActive {
-            content.matchedGeometryEffect(id: id, in: ns)
-        } else {
-            content
-        }
-    }
-}
-
 struct FolderView: View {
     @ObservedObject var appStore: AppStore
     @Binding var folder: FolderInfo
@@ -233,7 +220,8 @@ struct FolderView: View {
                         )
                     }
                 }
-                .animation(isSettlingDrop ? nil : LNAnimations.gridUpdate, value: visualApps.map(\.id))
+                .animation(LNAnimations.gridUpdate, value: pendingDropIndex)
+                .animation(LNAnimations.gridUpdate, value: folder.apps)
                 .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
                 .background(
                     GeometryReader { proxy in
@@ -367,13 +355,7 @@ extension FolderView {
         )
         .environmentObject(appStore)
         .frame(height: appHeight)
-        .modifier(
-            ConditionalMatchedGeometry(
-                isActive: !isSettlingDrop && !isDraggingThisTile,
-                id: app.id,
-                ns: reorderNamespaceFolder
-            )
-        )
+        .matchedGeometryEffect(id: app.id, in: reorderNamespaceFolder)
 
         base
             .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : ((lastDroppedAppID == app.id) ? 0 : 1))
