@@ -1,4 +1,7 @@
 # LaunchNow
+
+<img width="1024" height="1024" alt="AppIcon-macOS-Default-1024x1024@1x" src="https://github.com/user-attachments/assets/b4bf72d3-a272-44ad-ab9a-d02248a9fa67" />
+
 Alternative Launchpad application for MacOS Tahoe. 
 
 ![License](https://img.shields.io/github/license/ggkevinnnn/LaunchNow)
