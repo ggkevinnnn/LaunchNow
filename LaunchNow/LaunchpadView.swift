@@ -245,32 +245,39 @@ struct LaunchpadView: View {
                             // 内容
                             HStack(spacing: config.pageSpacing) {
                                 ForEach(pages.indices, id: \.self) { index in
+                                    let pageItems = pages[index]
                                     VStack(alignment: .leading, spacing: 0) {
                                         // 在网格上方添加动态padding
                                         if config.isFullscreen {
                                             Spacer()
                                                 .frame(height: actualTopPadding)
                                         }
-                                        LazyVGrid(columns: config.gridItems, spacing: config.rowSpacing) {
-                                            ForEach(Array(pages[index].enumerated()), id: \.element.id) { (localOffset, item) in
-                                                let globalIndex = index * config.itemsPerPage + localOffset
-                                                itemDraggable(
-                                                    item: item,
-                                                    globalIndex: globalIndex,
-                                                    pageIndex: index,
-                                                    containerSize: geo.size,
-                                                    columnWidth: columnWidth,
-                                                    iconSize: iconSize,
-                                                    appHeight: appHeight,
-                                                    labelWidth: columnWidth * 0.9,
-                                                    isSelected: (!isFolderOpen && isKeyboardNavigationActive && selectedIndex == globalIndex)
-                                                )
+                                        if shouldRenderPage(index, totalPages: pages.count) {
+                                            LazyVGrid(columns: config.gridItems, spacing: config.rowSpacing) {
+                                                ForEach(pageItems.indices, id: \.self) { localOffset in
+                                                    let item = pageItems[localOffset]
+                                                    let globalIndex = index * config.itemsPerPage + localOffset
+                                                    itemDraggable(
+                                                        item: item,
+                                                        globalIndex: globalIndex,
+                                                        pageIndex: index,
+                                                        containerSize: geo.size,
+                                                        columnWidth: columnWidth,
+                                                        iconSize: iconSize,
+                                                        appHeight: appHeight,
+                                                        labelWidth: columnWidth * 0.9,
+                                                        isSelected: (!isFolderOpen && isKeyboardNavigationActive && selectedIndex == globalIndex)
+                                                    )
+                                                }
                                             }
+                                            .animation(LNAnimations.gridUpdate, value: pendingDropIndex)
+                                            .animation(LNAnimations.gridUpdate, value: appStore.gridRefreshTrigger)
+                                            .id("grid_\(index)_\(appStore.gridRefreshTrigger.uuidString)")
+                                            .frame(maxHeight: .infinity, alignment: .top)
+                                        } else {
+                                            Color.clear
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                                         }
-                                        .animation(LNAnimations.gridUpdate, value: pendingDropIndex)
-                                        .animation(LNAnimations.gridUpdate, value: appStore.gridRefreshTrigger)
-                                        .id("grid_\(index)_\(appStore.gridRefreshTrigger.uuidString)")
-                                        .frame(maxHeight: .infinity, alignment: .top)
                                     }
                                     .frame(width: geo.size.width, height: geo.size.height)
                                 }
@@ -942,6 +949,12 @@ extension LaunchpadView {
 
 // MARK: - View builders
 extension LaunchpadView {
+    private func shouldRenderPage(_ index: Int, totalPages: Int) -> Bool {
+        // 只渲染当前页和相邻页，减少滚动时的重排开销
+        if totalPages <= 3 { return true }
+        return abs(index - appStore.currentPage) <= 1
+    }
+
     @ViewBuilder
     private func itemDraggable(item: LaunchpadItem,
                                globalIndex: Int,
@@ -983,12 +996,19 @@ extension LaunchpadView {
             )
             .environmentObject(appStore)
             .frame(height: appHeight)
-            .matchedGeometryEffect(id: item.id, in: reorderNamespace)
             // 保持稳定的视图身份，避免在文件夹更新后中断拖拽手势
             .id(item.id)
-            
+
+            let baseWithGeometry: AnyView = {
+                if draggingItem != nil {
+                    return AnyView(base.matchedGeometryEffect(id: item.id, in: reorderNamespace))
+                } else {
+                    return AnyView(base)
+                }
+            }()
+
             // 统一：对“刚落下的项”做淡入（无论是否可拖拽/是否在搜索模式）
-            let baseWithFade = base
+            let baseWithFade = baseWithGeometry
                 .opacity((lastDroppedItemID == item.id) ? 0 : 1)
                 .animation(LNAnimations.itemAppear, value: lastDroppedItemID)
 
