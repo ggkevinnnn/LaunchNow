@@ -1160,7 +1160,7 @@ extension LaunchpadView {
                               isMomentum: Bool,
                               isPrecise: Bool,
                               pageWidth: CGFloat) {
-        guard !isFolderOpen else { return }
+        guard !isFolderOpen, !appStore.isSetting else { return }
         // Mouse wheel (non-precise): accumulate distance; apply small cooldown to avoid multi-page flips
         if !isPrecise {
             // Map vertical wheel to horizontal direction like precise scroll

@@ -62,3 +62,9 @@
 "Small" = "Small";
 "Large" = "Large";
 "DefaultSize" = "Default size";
+"HiddenApps" = "Hidden apps";
+"HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
+"AddHiddenApps" = "Add apps";
+"NoHiddenApps" = "No hidden apps";
+"Hide" = "Hide";
+"ClearHiddenApps" = "Clear hidden";

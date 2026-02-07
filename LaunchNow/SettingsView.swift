@@ -7,8 +7,14 @@ struct SettingsView: View {
     @ObservedObject var appStore: AppStore
     @StateObject private var updater = Updater.shared
     @State private var showResetConfirm = false
+    @State private var hideAppSearchText: String = ""
+    @State private var showAddHiddenApps: Bool = false
+    @State private var pendingHiddenSelections: Set<String> = []
 
     var body: some View {
+        let hidableApps = appStore.hidableApps(searchText: hideAppSearchText)
+        let hiddenApps = hidableApps.filter { appStore.isAppHidden(path: $0.url.path) }
+        let addableApps = hidableApps.filter { !appStore.isAppHidden(path: $0.url.path) }
         VStack {
             HStack(alignment: .firstTextBaseline) {
                 Text("LaunchNow")
@@ -130,48 +136,204 @@ struct SettingsView: View {
                             .font(.footnote)
                             .foregroundStyle(.tertiary)
                     } else {
-                        ForEach(Array(appStore.defaultSearchPaths.enumerated()), id: \.offset) { idx, path in
-                            HStack {
-                                Text(path)
-                                    .font(.footnote)
-                                    .textSelection(.enabled)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Spacer()
-                                Button(role: .destructive) {
-                                    var paths = appStore.defaultSearchPaths
-                                    if idx < paths.count { paths.remove(at: idx) }
-                                    appStore.defaultSearchPaths = paths
-                                } label: {
-                                    Image(systemName: "trash")
+                        ScrollView {
+                            ForEach(Array(appStore.defaultSearchPaths.enumerated()), id: \.offset) { idx, path in
+                                HStack {
+                                    Text(path)
                                         .font(.footnote)
+                                        .textSelection(.enabled)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                        .padding(.vertical, 3)
+                                    Spacer()
+                                    Button(role: .destructive) {
+                                        var paths = appStore.defaultSearchPaths
+                                        if idx < paths.count { paths.remove(at: idx) }
+                                        appStore.defaultSearchPaths = paths
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.footnote)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
+                            }
+                            ForEach(Array(appStore.customSearchPaths.enumerated()), id: \.offset) { idx, path in
+                                HStack {
+                                    Text(path)
+                                        .font(.footnote)
+                                        .textSelection(.enabled)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                        .padding(.vertical, 3)
+                                    Spacer()
+                                    Button(role: .destructive) {
+                                        var paths = appStore.customSearchPaths
+                                        if idx < paths.count { paths.remove(at: idx) }
+                                        appStore.customSearchPaths = paths
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.footnote)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
-                        ForEach(Array(appStore.customSearchPaths.enumerated()), id: \.offset) { idx, path in
-                            HStack {
-                                Text(path)
-                                    .font(.footnote)
-                                    .textSelection(.enabled)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Spacer()
-                                Button(role: .destructive) {
-                                    var paths = appStore.customSearchPaths
-                                    if idx < paths.count { paths.remove(at: idx) }
-                                    appStore.customSearchPaths = paths
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .font(.footnote)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
+                        .frame(height: 100)
+                        .scrollIndicators(.hidden)
                     }
                 }
             }
             .padding()
+            
+            Divider()
+            
+            VStack(alignment: .leading) {
+                HStack {
+                    Text(NSLocalizedString("HiddenApps", comment: "Hide apps from grid"))
+                    Spacer()
+                    Button {
+                        showAddHiddenApps = true
+                    } label: {
+                        Label(NSLocalizedString("Add", comment: "Add"), systemImage: "plus")
+                    }
+                    Button {
+                        let hiddenApps = appStore.hidableApps(searchText: "")
+                            .filter { appStore.isAppHidden(path: $0.url.path) }
+                        for app in hiddenApps {
+                            appStore.setAppHidden(false, app: app)
+                        }
+                    } label: {
+                        Label(NSLocalizedString("ClearHiddenApps", comment: "Clear hidden apps"), systemImage: "arrow.uturn.backward")
+                    }
+                }
+
+                if hiddenApps.isEmpty {
+                    Text(NSLocalizedString("NoHiddenApps", comment: "No hidden apps"))
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 6) {
+                            ForEach(hiddenApps, id: \.id) { app in
+                                HStack(spacing: 10) {
+                                    Image(nsImage: app.icon)
+                                        .resizable()
+                                        .frame(width: 20, height: 20)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(app.name)
+                                            .font(.body)
+                                        Text(app.url.path)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                    }
+                                    Spacer()
+                                    Button(role: .destructive) {
+                                        appStore.setAppHidden(false, app: app)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.footnote)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.vertical, 3)
+                            }
+                        }
+                        .padding(.vertical, 3)
+                    }
+                    .scrollIndicators(.hidden)
+                    .frame(height: 100)
+                }
+
+            }
+            .padding()
+            .sheet(isPresented: $showAddHiddenApps) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text(NSLocalizedString("AddHiddenApps", comment: "Add hidden apps"))
+                            .font(.title)
+                        Spacer()
+                        .buttonStyle(.plain)
+                        Button {
+                            showAddHiddenApps = false
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.title3.bold())
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    TextField(NSLocalizedString("Search", comment: "Search"), text: $hideAppSearchText)
+                        .textFieldStyle(.roundedBorder)
+
+                    if addableApps.isEmpty {
+                        Text(NSLocalizedString("NoAppsFound", comment: "No apps found"))
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 6) {
+                                ForEach(addableApps, id: \.id) { app in
+                                    HStack(spacing: 10) {
+                                        Image(nsImage: app.icon)
+                                            .resizable()
+                                            .frame(width: 20, height: 20)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(app.name)
+                                                .font(.body)
+                                            Text(app.url.path)
+                                                .font(.footnote)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Toggle("", isOn: Binding(
+                                            get: { pendingHiddenSelections.contains(app.url.path) },
+                                            set: { isOn in
+                                                if isOn {
+                                                    pendingHiddenSelections.insert(app.url.path)
+                                                } else {
+                                                    pendingHiddenSelections.remove(app.url.path)
+                                                }
+                                            }
+                                        ))
+                                        .labelsHidden()
+                                        .toggleStyle(.checkbox)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 3)
+                            .padding(.horizontal)
+                        }
+                        .frame(height: 500)
+                        .padding()
+                    }
+                    
+                    HStack {
+                        Spacer()
+                        Button(NSLocalizedString("Confirm", comment: "Confirm")) {
+                            for path in pendingHiddenSelections {
+                                if let app = addableApps.first(where: { $0.url.path == path }) {
+                                    appStore.setAppHidden(true, app: app)
+                                }
+                            }
+                            pendingHiddenSelections.removeAll()
+                            showAddHiddenApps = false
+                        }
+                        .disabled(pendingHiddenSelections.isEmpty)
+                    }
+                }
+                .padding()
+                .padding()
+                .onAppear {
+                    pendingHiddenSelections.removeAll()
+                }
+            }
             
             Divider()
             
@@ -361,4 +523,3 @@ struct SettingsView: View {
         }
     }
 }
-

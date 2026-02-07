@@ -52,6 +52,14 @@ final class AppStore: ObservableObject {
             }
         }
     }
+
+    private let hiddenAppsDefaultsKey = "hiddenApplicationPaths"
+    @Published var hiddenAppPaths: Set<String> = [] {
+        didSet {
+            UserDefaults.standard.set(Array(hiddenAppPaths), forKey: hiddenAppsDefaultsKey)
+            applyHiddenApps()
+        }
+    }
     
     // Option 模式：仅允许创建/加入文件夹，禁止网格让位与插入
     @Published var isOptionFolderMode: Bool = false
@@ -181,6 +189,98 @@ final class AppStore: ObservableObject {
         return result
     }
 
+    private func isPathUnderEffectiveSearchPaths(_ path: String) -> Bool {
+        let expanded = (path as NSString).expandingTildeInPath
+        let bases = effectiveApplicationSearchPaths()
+        for base in bases {
+            if expanded == base || expanded.hasPrefix(base + "/") {
+                return true
+            }
+        }
+        return false
+    }
+
+    func isAppHidden(path: String) -> Bool {
+        hiddenAppPaths.contains(path)
+    }
+
+    func setAppHidden(_ hidden: Bool, app: AppInfo) {
+        let path = app.url.path
+        if hidden {
+            hiddenAppPaths.insert(path)
+        } else {
+            hiddenAppPaths.remove(path)
+            ensureAppInTopLevelIfNeeded(app)
+        }
+    }
+
+    private func ensureAppInTopLevelIfNeeded(_ app: AppInfo) {
+        guard FileManager.default.fileExists(atPath: app.url.path) else { return }
+        if !apps.contains(where: { $0.url.path == app.url.path }) {
+            apps.append(app)
+            apps.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+    }
+
+    private func applyHiddenApps() {
+        guard isConfigured else { return }
+
+        var foldersChanged = false
+        if !hiddenAppPaths.isEmpty {
+            for idx in folders.indices {
+                let before = folders[idx].apps.count
+                folders[idx].apps.removeAll { isAppHidden(path: $0.url.path) }
+                if folders[idx].apps.count != before {
+                    foldersChanged = true
+                }
+            }
+        }
+
+        if foldersChanged {
+            folders.removeAll { $0.apps.isEmpty }
+        }
+
+        rebuildItems()
+        compactItemsWithinPages()
+        removeEmptyPages()
+        pruneEmptyFolders()
+        triggerFolderUpdate()
+        triggerGridRefresh()
+        saveAllOrder()
+    }
+
+    func hidableApps(searchText: String) -> [AppInfo] {
+        var byPath: [String: AppInfo] = [:]
+        for app in apps {
+            byPath[app.url.path] = app
+        }
+        for folder in folders {
+            for app in folder.apps {
+                if byPath[app.url.path] == nil {
+                    byPath[app.url.path] = app
+                }
+            }
+        }
+        for path in hiddenAppPaths {
+            if byPath[path] != nil { continue }
+            guard isPathUnderEffectiveSearchPaths(path) else { continue }
+            let url = URL(fileURLWithPath: path)
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            byPath[path] = appInfo(from: url)
+        }
+        let allApps = Array(byPath.values)
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let filtered: [AppInfo]
+        if query.isEmpty {
+            filtered = allApps
+        } else {
+            filtered = allApps.filter { app in
+                app.name.lowercased().contains(query) || app.url.path.lowercased().contains(query)
+            }
+        }
+        return filtered.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     init() {
         self.isFullscreenMode = UserDefaults.standard.bool(forKey: "isFullscreenMode")
         self.scrollSensitivity = UserDefaults.standard.double(forKey: "scrollSensitivity")
@@ -203,6 +303,10 @@ final class AppStore: ObservableObject {
         }
         if let savedCustom = UserDefaults.standard.array(forKey: "customApplicationSearchPaths") as? [String] {
             self.customSearchPaths = savedCustom
+        }
+
+        if let savedHidden = UserDefaults.standard.array(forKey: hiddenAppsDefaultsKey) as? [String] {
+            self.hiddenAppPaths = Set(savedHidden)
         }
     }
 
@@ -260,6 +364,7 @@ final class AppStore: ObservableObject {
             .store(in: &cancellables)
         
         filteredItems = items
+        applyHiddenApps()
     }
 
     // MARK: - Order Persistence
@@ -514,7 +619,7 @@ final class AppStore: ObservableObject {
                 
             case .app(let app):
                 // 检查应用是否仍然存在
-                if self.apps.contains(where: { $0.url.path == app.url.path }) {
+                if self.apps.contains(where: { $0.url.path == app.url.path }) && !isAppHidden(path: app.url.path) {
                     if !appsInFolders.contains(app) {
                         // 应用仍然存在且不在文件夹中，保持原有位置
                         newItems.append(.app(app))
@@ -538,7 +643,7 @@ final class AppStore: ObservableObject {
             if case let .app(app) = item { return app.url.path } else { return nil }
         })
         let newFreeApps = self.apps.filter { app in
-            !appsInFolders.contains(app) && !existingAppPaths.contains(app.url.path)
+            !appsInFolders.contains(app) && !existingAppPaths.contains(app.url.path) && !isAppHidden(path: app.url.path)
         }
         if !newFreeApps.isEmpty {
             let itemsPerPage = self.itemsPerPage
@@ -681,7 +786,7 @@ final class AppStore: ObservableObject {
                 
             case .app(let app):
                 // 检查应用是否仍然存在
-                if self.apps.contains(where: { $0.url.path == app.url.path }) {
+                if self.apps.contains(where: { $0.url.path == app.url.path }) && !isAppHidden(path: app.url.path) {
                     if !appsInFolders.contains(app) {
                         // 应用仍然存在且不在文件夹中，保持原有位置
                         newItems.append(.app(app))
@@ -706,7 +811,7 @@ final class AppStore: ObservableObject {
         })
 
         var newFreeApps = self.apps.filter { app in
-            !appsInFolders.contains(app) && !existingAppPaths.contains(app.url.path)
+            !appsInFolders.contains(app) && !existingAppPaths.contains(app.url.path) && !isAppHidden(path: app.url.path)
         }
 
         if !newFreeApps.isEmpty {
@@ -761,7 +866,7 @@ final class AppStore: ObservableObject {
         
         // 添加所有自由应用（不在文件夹中的），保持现有顺序
         let appsInFolders = Set(self.folders.flatMap { $0.apps })
-        let freeApps = self.apps.filter { !appsInFolders.contains($0) }
+        let freeApps = self.apps.filter { !appsInFolders.contains($0) && !isAppHidden(path: $0.url.path) }
         
         // 保持现有顺序，不重新排序
         for app in freeApps {
@@ -774,7 +879,7 @@ final class AppStore: ObservableObject {
         }
         
         // 添加新增应用
-        for app in newApps {
+        for app in newApps where !isAppHidden(path: app.url.path) {
             if !appsInFolders.contains(app) && !freeApps.contains(app) {
                 newItems.append(.app(app))
             }
@@ -782,7 +887,7 @@ final class AppStore: ObservableObject {
         
         // 优先把新增应用放到“当前页面”的末尾（在 empty 之前）
         if !newApps.isEmpty {
-            var appsToPlace = newApps
+            var appsToPlace = newApps.filter { !isAppHidden(path: $0.url.path) }
             insertAppsAtEndOfCurrentPageBeforeEmpties(items: &newItems, apps: &appsToPlace)
 
             // 若仍有剩余，回退到原有策略：填充最后一页 empty，必要时扩展新页
@@ -858,6 +963,7 @@ final class AppStore: ObservableObject {
                     if folderMap[fid] != nil { continue }
                     
                     let folderApps: [AppInfo] = row.appPaths.compactMap { path in
+                        if isAppHidden(path: path) { return nil }
                         if let existing = apps.first(where: { $0.url.path == path }) {
                             return existing
                         }
@@ -1182,7 +1288,8 @@ final class AppStore: ObservableObject {
         for item in items {
             switch item {
             case .app(let app):
-                if let name = appIndex[app.url.path], name.contains(query) {
+                if !isAppHidden(path: app.url.path),
+                   let name = appIndex[app.url.path], name.contains(query) {
                     result.append(.app(app))
                     searchedApps.insert(app.url.path)
                 }
@@ -1192,7 +1299,8 @@ final class AppStore: ObservableObject {
                 }
                 for app in folder.apps {
                     if searchedApps.contains(app.url.path) { continue }
-                    if let name = appIndex[app.url.path], name.contains(query) {
+                    if !isAppHidden(path: app.url.path),
+                       let name = appIndex[app.url.path], name.contains(query) {
                         result.append(.app(app))
                         searchedApps.insert(app.url.path)
                     }
@@ -1593,7 +1701,7 @@ final class AppStore: ObservableObject {
             case .app(let app):
                 // 如果 app 已进入某个文件夹，或已从磁盘删除，则从顶层移除；否则保留其原有位置
                 let existsInApps = self.apps.contains(where: { $0.url.path == app.url.path })
-                if existsInApps && !appsInFolders.contains(app) {
+                if existsInApps && !appsInFolders.contains(app) && !isAppHidden(path: app.url.path) {
                     newItems.append(.app(app))
                     seenAppPaths.insert(app.url.path)
                 } else {
@@ -1607,7 +1715,9 @@ final class AppStore: ObservableObject {
         }
 
         // 追加遗漏的自由应用（未在顶层出现，但也不在任何文件夹中）
-        let missingFreeApps = apps.filter { !appsInFolders.contains($0) && !seenAppPaths.contains($0.url.path) }
+        let missingFreeApps = apps.filter {
+            !appsInFolders.contains($0) && !seenAppPaths.contains($0.url.path) && !isAppHidden(path: $0.url.path)
+        }
         newItems.append(contentsOf: missingFreeApps.map { .app($0) })
 
         // 注意：不要自动把缺失的文件夹追加到末尾，
@@ -1654,6 +1764,7 @@ final class AppStore: ObservableObject {
                 if folderMap[fid] != nil { continue }
 
                 let folderApps: [AppInfo] = row.appPaths.compactMap { path in
+                    if isAppHidden(path: path) { return nil }
                     if let existing = apps.first(where: { $0.url.path == path }) {
                         return existing
                     }
@@ -1678,7 +1789,7 @@ final class AppStore: ObservableObject {
                         combined.append(.folder(folder))
                     }
                 case "app":
-                    if let path = row.appPath, !folderAppPathSet.contains(path) {
+                    if let path = row.appPath, !folderAppPathSet.contains(path), !isAppHidden(path: path) {
                         if let existing = apps.first(where: { $0.url.path == path }) {
                             combined.append(.app(existing))
                         } else {
@@ -1709,7 +1820,10 @@ final class AppStore: ObservableObject {
                     self.compactItemsWithinPages()
                     // 如果应用列表为空，从持久化数据中恢复应用列表
                     if self.apps.isEmpty {
-                        let freeApps: [AppInfo] = combined.compactMap { if case let .app(a) = $0 { return a } else { return nil } }
+                        let freeApps: [AppInfo] = combined.compactMap {
+                            if case let .app(a) = $0, !self.isAppHidden(path: a.url.path) { return a }
+                            return nil
+                        }
                         self.apps = freeApps
                     }
                 }
@@ -1732,6 +1846,7 @@ final class AppStore: ObservableObject {
             let folderAppPathSet: Set<String> = Set(saved.filter { $0.kind == "folder" }.flatMap { $0.appPaths })
             for row in saved where row.kind == "folder" {
                 let folderApps: [AppInfo] = row.appPaths.compactMap { path in
+                    if isAppHidden(path: path) { return nil }
                     if let existing = apps.first(where: { $0.url.path == path }) { return existing }
                     let url = URL(fileURLWithPath: path)
                     guard FileManager.default.fileExists(atPath: url.path) else { return nil }
@@ -1759,6 +1874,8 @@ final class AppStore: ObservableObject {
                         if folderAppPathSet.contains(path) {
                             // 已在文件夹中：保留空槽位
                             combined.append(.empty(row.id))
+                        } else if isAppHidden(path: path) {
+                            combined.append(.empty(row.id))
                         } else if let existing = apps.first(where: { $0.url.path == path }) {
                             combined.append(.app(existing))
                         } else {
@@ -1783,7 +1900,7 @@ final class AppStore: ObservableObject {
             let appsInFolders = Set(foldersInOrder.flatMap { $0.apps })
             let appsInCombined: Set<AppInfo> = Set(combined.compactMap { if case let .app(a) = $0 { return a } else { return nil } })
             let missingFreeApps = apps
-                .filter { !appsInFolders.contains($0) && !appsInCombined.contains($0) }
+                .filter { !appsInFolders.contains($0) && !appsInCombined.contains($0) && !isAppHidden(path: $0.url.path) }
                 .map { LaunchpadItem.app($0) }
             combined.append(contentsOf: missingFreeApps)
 
@@ -1795,7 +1912,10 @@ final class AppStore: ObservableObject {
                     self.compactItemsWithinPages()
                     // 如果应用列表为空，从持久化数据中恢复应用列表
                     if self.apps.isEmpty {
-                        let freeAppsAfterLoad: [AppInfo] = combined.compactMap { if case let .app(a) = $0 { return a } else { return nil } }
+                        let freeAppsAfterLoad: [AppInfo] = combined.compactMap {
+                            if case let .app(a) = $0, !self.isAppHidden(path: a.url.path) { return a }
+                            return nil
+                        }
                         self.apps = freeAppsAfterLoad
                     }
                 }
@@ -2249,13 +2369,14 @@ final class AppStore: ObservableObject {
                 if let folderApps = pageData["folderApps"] as? [String],
                    let folderAppPaths = pageData["folderAppPaths"] as? [String] {
                     // 重建文件夹 - 优先使用应用路径来匹配，确保准确性
-                    let folderAppsList = folderAppPaths.compactMap { appPath in
+                    let folderAppsList: [AppInfo] = folderAppPaths.compactMap { appPath -> AppInfo? in
+                        if isAppHidden(path: appPath) { return nil }
                         // 通过应用路径匹配，这是最准确的方式
                         if let app = apps.first(where: { $0.url.path == appPath }) {
                             return app
                         }
                         // 如果路径匹配失败，尝试通过名称匹配（备用方案）
-                        if let appName = folderApps.first(where: { _ in true }), // 获取对应的应用名称
+                        if let appName = folderApps.first,
                            let app = apps.first(where: { $0.name == appName }) {
                             return app
                         }
@@ -2339,7 +2460,7 @@ final class AppStore: ObservableObject {
         let usedAppsInFolders = Set(importedFolders.flatMap { $0.apps })
         let allUsedApps = usedApps.union(usedAppsInFolders)
         
-        let unusedApps = apps.filter { !allUsedApps.contains($0) }
+        let unusedApps = apps.filter { !allUsedApps.contains($0) && !isAppHidden(path: $0.url.path) }
         
         if !unusedApps.isEmpty {
             // 计算需要添加的空槽位数量
