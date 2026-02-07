@@ -64,7 +64,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "575"
             endingLineNumber = "575"
-            landmarkName = "handleItemTap(_:)"
+            landmarkName = "startHandoffDragIfNeeded(geo:columnWidth:appHeight:iconSize:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -80,7 +80,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "583"
             endingLineNumber = "583"
-            landmarkName = "handleItemTap(_:)"
+            landmarkName = "startHandoffDragIfNeeded(geo:columnWidth:appHeight:iconSize:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

@@ -10,6 +10,7 @@ final class AppStore: ObservableObject {
     @Published var apps: [AppInfo] = []
     @Published var folders: [FolderInfo] = []
     @Published var items: [LaunchpadItem] = []
+    @Published private(set) var filteredItems: [LaunchpadItem] = []
     @Published var isSetting = false
     @Published var currentPage = 0
     @Published var searchText: String = ""
@@ -61,6 +62,12 @@ final class AppStore: ObservableObject {
     // 文件夹相关状态
     @Published var openFolder: FolderInfo? = nil {
         didSet {
+            if let folder = openFolder {
+                let paths = folder.apps.map { $0.url.path }
+                if !paths.isEmpty {
+                    AppCacheManager.shared.preloadIcons(for: paths)
+                }
+            }
             // When closing an open folder, ensure we reset editing/dragging states so grid drag works again
             if oldValue != nil && openFolder == nil {
                 // End any folder-name editing session
@@ -111,9 +118,14 @@ final class AppStore: ObservableObject {
     
     // 后台刷新队列与节流
     private let refreshQueue = DispatchQueue(label: "app.store.refresh", qos: .userInitiated)
+    private let searchQueue = DispatchQueue(label: "app.store.search", qos: .userInitiated)
     private var gridRefreshWorkItem: DispatchWorkItem?
     private var rescanWorkItem: DispatchWorkItem?
     private let fsEventsQueue = DispatchQueue(label: "app.store.fsevents")
+    private let fsEventsStateLock = NSLock()
+    private let searchIndexLock = NSLock()
+    private var appNameIndex: [String: String] = [:]
+    private var folderNameIndex: [String: String] = [:]
     
     // 计算属性
     private var itemsPerPage: Int { 35 }
@@ -231,6 +243,23 @@ final class AppStore: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+        
+        Publishers.CombineLatest($apps, $folders)
+            .receive(on: searchQueue)
+            .sink { [weak self] apps, folders in
+                self?.updateSearchIndex(apps: apps, folders: folders)
+            }
+            .store(in: &cancellables)
+        
+        Publishers.CombineLatest3($items, $searchText, $folders)
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
+            .receive(on: searchQueue)
+            .sink { [weak self] items, searchText, _ in
+                self?.rebuildFilteredItems(items: items, searchText: searchText)
+            }
+            .store(in: &cancellables)
+        
+        filteredItems = items
     }
 
     // MARK: - Order Persistence
@@ -923,6 +952,7 @@ final class AppStore: ObservableObject {
     private func handleFSEvents(paths: [String], flagsPointer: UnsafePointer<FSEventStreamEventFlags>?, count: Int) {
         let maxCount = min(paths.count, count)
         var localForceFull = false
+        var localChanged: Set<String> = []
         
         for i in 0..<maxCount {
             let rawPath = paths[i]
@@ -941,11 +971,16 @@ final class AppStore: ObservableObject {
 
             guard let appBundlePath = self.canonicalAppBundlePath(for: rawPath) else { continue }
             if created || removed || renamed || modified {
-                pendingChangedAppPaths.insert(appBundlePath)
+                localChanged.insert(appBundlePath)
             }
         }
 
-        if localForceFull { pendingForceFullScan = true }
+        if localForceFull || !localChanged.isEmpty {
+            fsEventsStateLock.lock()
+            if localForceFull { pendingForceFullScan = true }
+            if !localChanged.isEmpty { pendingChangedAppPaths.formUnion(localChanged) }
+            fsEventsStateLock.unlock()
+        }
         scheduleRescan()
     }
 
@@ -958,15 +993,23 @@ final class AppStore: ObservableObject {
     }
 
     private func performImmediateRefresh() {
-        if pendingForceFullScan || pendingChangedAppPaths.count > fullRescanThreshold {
+        var shouldFull = false
+        var changed: Set<String> = []
+        fsEventsStateLock.lock()
+        shouldFull = pendingForceFullScan || pendingChangedAppPaths.count > fullRescanThreshold
+        if shouldFull {
             pendingForceFullScan = false
             pendingChangedAppPaths.removeAll()
+        } else {
+            changed = pendingChangedAppPaths
+            pendingChangedAppPaths.removeAll()
+        }
+        fsEventsStateLock.unlock()
+        
+        if shouldFull {
             scanApplications()
             return
         }
-        
-        let changed = pendingChangedAppPaths
-        pendingChangedAppPaths.removeAll()
         
         if !changed.isEmpty {
             applyIncrementalChanges(for: changed)
@@ -1091,6 +1134,77 @@ final class AppStore: ObservableObject {
         let name = localizedAppName(for: url)
         let icon = NSWorkspace.shared.icon(forFile: url.path)
         return AppInfo(name: name, icon: icon, url: url)
+    }
+    
+    // MARK: - Search index & filtered items
+    private func updateSearchIndex(apps: [AppInfo], folders: [FolderInfo]) {
+        var appIndex: [String: String] = [:]
+        appIndex.reserveCapacity(apps.count + folders.reduce(0) { $0 + $1.apps.count })
+        for app in apps {
+            appIndex[app.url.path] = app.name.lowercased()
+        }
+        for folder in folders {
+            for app in folder.apps {
+                if appIndex[app.url.path] == nil {
+                    appIndex[app.url.path] = app.name.lowercased()
+                }
+            }
+        }
+        var folderIndex: [String: String] = [:]
+        folderIndex.reserveCapacity(folders.count)
+        for folder in folders {
+            folderIndex[folder.id] = folder.name.lowercased()
+        }
+        searchIndexLock.lock()
+        appNameIndex = appIndex
+        folderNameIndex = folderIndex
+        searchIndexLock.unlock()
+    }
+    
+    private func rebuildFilteredItems(items: [LaunchpadItem], searchText: String) {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if query.isEmpty {
+            DispatchQueue.main.async { [weak self] in
+                self?.filteredItems = items
+            }
+            return
+        }
+        
+        searchIndexLock.lock()
+        let appIndex = appNameIndex
+        let folderIndex = folderNameIndex
+        searchIndexLock.unlock()
+        
+        var result: [LaunchpadItem] = []
+        result.reserveCapacity(items.count)
+        var searchedApps = Set<String>()
+        
+        for item in items {
+            switch item {
+            case .app(let app):
+                if let name = appIndex[app.url.path], name.contains(query) {
+                    result.append(.app(app))
+                    searchedApps.insert(app.url.path)
+                }
+            case .folder(let folder):
+                if let name = folderIndex[folder.id], name.contains(query) {
+                    result.append(.folder(folder))
+                }
+                for app in folder.apps {
+                    if searchedApps.contains(app.url.path) { continue }
+                    if let name = appIndex[app.url.path], name.contains(query) {
+                        result.append(.app(app))
+                        searchedApps.insert(app.url.path)
+                    }
+                }
+            case .empty:
+                break
+            }
+        }
+        
+        DispatchQueue.main.async { [weak self] in
+            self?.filteredItems = result
+        }
     }
     
     // MARK: - 文件夹管理

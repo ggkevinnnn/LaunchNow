@@ -89,49 +89,7 @@ struct LaunchpadView: View {
     }
     
     var filteredItems: [LaunchpadItem] {
-        guard !appStore.searchText.isEmpty else { return appStore.items }
-        
-        var result: [LaunchpadItem] = []
-        var searchedApps = Set<String>() // 用于去重，避免重复显示同一个应用
-        
-        // 首先搜索主界面上的项目
-        for item in appStore.items {
-            switch item {
-            case .app(let app):
-                if app.name.localizedCaseInsensitiveContains(appStore.searchText) {
-                    result.append(.app(app))
-                    searchedApps.insert(app.url.path)
-                }
-            case .folder(let folder):
-                // 检查文件夹名称
-                if folder.name.localizedCaseInsensitiveContains(appStore.searchText) {
-                    result.append(.folder(folder))
-                }
-                
-                // 检查文件夹内的应用，如果匹配则提取出来直接显示
-                let matchingApps = folder.apps.filter { app in
-                    app.name.localizedCaseInsensitiveContains(appStore.searchText)
-                }
-                for app in matchingApps {
-                    if !searchedApps.contains(app.url.path) {
-                        // 确保应用对象有效且图标可用
-                        let icon = app.icon.size.width > 0 ? app.icon : NSWorkspace.shared.icon(forFile: app.url.path)
-                        let validApp = AppInfo(
-                            name: app.name,
-                            icon: icon,
-                            url: app.url
-                        )
-                        result.append(.app(validApp))
-                        searchedApps.insert(app.url.path)
-                    }
-                }
-                
-            case .empty:
-                break
-            }
-        }
-        
-        return result
+        appStore.filteredItems
     }
     
     var pages: [[LaunchpadItem]] {
@@ -1977,4 +1935,3 @@ func arrowDelta(for keyCode: UInt16) -> (dx: Int, dy: Int)? {
     default: return nil
     }
 }
-

@@ -113,6 +113,11 @@ struct LaunchpadItemButton: View {
         .onHover { hovering in
             isHovered = hovering
         }
+        .onReceive(NotificationCenter.default.publisher(for: FolderInfo.folderIconDidUpdate)) { note in
+            guard case .folder(let folder) = item else { return }
+            guard let updatedFolderId = note.object as? String, updatedFolderId == folder.id else { return }
+            forceRefreshTrigger = UUID()
+        }
     }
     
     private func handleTap() {
