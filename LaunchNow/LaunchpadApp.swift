@@ -90,10 +90,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         lastShowAt = Date()
         NotificationCenter.default.post(name: .launchpadWindowShown, object: nil)
         
-        if let contentView = window?.contentView {
-            let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(handleBackgroundClick))
-            contentView.addGestureRecognizer(clickGesture)
-        }
     }
     
     func showWindow() {
@@ -172,9 +168,4 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return false
     }
     
-    @objc private func handleBackgroundClick() {
-        if appStore.isFullscreenMode && appStore.openFolder == nil && !appStore.isFolderNameEditing {
-            hideWindow()
-        }
-    }
 }

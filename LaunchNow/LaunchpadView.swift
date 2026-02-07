@@ -233,6 +233,15 @@ struct LaunchpadView: View {
                     } else {
                         let hStackOffset = -CGFloat(appStore.currentPage) * effectivePageWidth + interactivePageOffset
                         ZStack(alignment: .topLeading) {
+                            Color.clear
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    guard appStore.isFullscreenMode,
+                                          appStore.openFolder == nil,
+                                          !appStore.isFolderNameEditing else { return }
+                                    AppDelegate.shared?.hideWindow()
+                                }
                             // 内容
                             HStack(spacing: config.pageSpacing) {
                                 ForEach(pages.indices, id: \.self) { index in
