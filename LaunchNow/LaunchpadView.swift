@@ -1,6 +1,6 @@
 import SwiftUI
-import Combine
 import AppKit
+import Combine
 
 // MARK: - LaunchpadItem extension
 extension LaunchpadItem {
@@ -69,8 +69,6 @@ struct LaunchpadView: View {
     private static var lastGeometryUpdate: Date = Date.distantPast
     private let geometryCacheTimeout: TimeInterval = 0.1 // 100ms缓存超时
     
-    // 性能监控
-    @State private var performanceMetrics: [String: TimeInterval] = [:]
     @State private var isHandoffDragging: Bool = false
     @State private var isUserSwiping: Bool = false
     @State private var accumulatedScrollX: CGFloat = 0
@@ -81,8 +79,12 @@ struct LaunchpadView: View {
     
     // 跟手翻页：交互偏移（仅在精确滚动手势进行中使用）
     @State private var interactivePageOffset: CGFloat = 0
+    @State private var isPageTransitioning: Bool = false
 
     private var isFolderOpen: Bool { appStore.openFolder != nil }
+    private var isPagingInteractionActive: Bool {
+        isUserSwiping || interactivePageOffset != 0 || isPageTransitioning
+    }
     
     private var config: GridConfig {
         GridConfig(isFullscreen: appStore.isFullscreenMode)
@@ -305,6 +307,10 @@ struct LaunchpadView: View {
                                     currentPage: appStore.currentPage,
                                     itemsPerPage: config.itemsPerPage
                                 )
+                            }
+                            isPageTransitioning = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                isPageTransitioning = false
                             }
                         }
                         .onChange(of: geo.size) {
@@ -941,7 +947,7 @@ extension LaunchpadView {
             Rectangle().fill(Color.clear)
                 .frame(height: appHeight)
         } else {
-            let shouldAllowHover = draggingItem == nil
+            let shouldAllowHover = draggingItem == nil && !isPagingInteractionActive
 
             let isCenterCreatingTarget: Bool = {
                 guard let draggingItem, let idx = currentItems.firstIndex(of: item) else { return false }

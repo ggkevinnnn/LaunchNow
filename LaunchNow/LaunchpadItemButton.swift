@@ -111,7 +111,16 @@ struct LaunchpadItemButton: View {
         .buttonStyle(.plain)
         .padding(8)
         .onHover { hovering in
-            isHovered = hovering
+            if shouldAllowHover {
+                isHovered = hovering
+            } else if isHovered {
+                isHovered = false
+            }
+        }
+        .onChange(of: shouldAllowHover) {
+            if !shouldAllowHover, isHovered {
+                isHovered = false
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: FolderInfo.folderIconDidUpdate)) { note in
             guard case .folder(let folder) = item else { return }

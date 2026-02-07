@@ -62,8 +62,8 @@
             filePath = "LaunchNow/LaunchpadView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "575"
-            endingLineNumber = "575"
+            startingLineNumber = "576"
+            endingLineNumber = "576"
             landmarkName = "startHandoffDragIfNeeded(geo:columnWidth:appHeight:iconSize:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -78,8 +78,8 @@
             filePath = "LaunchNow/LaunchpadView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "583"
-            endingLineNumber = "583"
+            startingLineNumber = "584"
+            endingLineNumber = "584"
             landmarkName = "startHandoffDragIfNeeded(geo:columnWidth:appHeight:iconSize:)"
             landmarkType = "7">
          </BreakpointContent>

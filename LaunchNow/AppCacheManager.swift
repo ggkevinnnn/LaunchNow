@@ -20,7 +20,6 @@ final class AppCacheManager: ObservableObject {
     // MARK: - 缓存状态
     @Published var isCacheValid = false
     @Published var lastCacheUpdate = Date.distantPast
-    @Published var cacheSize: Int = 0
     // MARK: - 缓存键生成
     private let cacheKeyGenerator = CacheKeyGenerator()
     
@@ -68,8 +67,6 @@ final class AppCacheManager: ObservableObject {
             DispatchQueue.main.async {
                 self.isCacheValid = true
                 self.lastCacheUpdate = Date()
-                self.calculateCacheSize()
-        
             }
         }
     }
@@ -125,9 +122,6 @@ final class AppCacheManager: ObservableObject {
                 }
             }
             
-            DispatchQueue.main.async {
-                self.calculateCacheSize()
-            }
         }
     }
     
@@ -158,7 +152,6 @@ final class AppCacheManager: ObservableObject {
         
         DispatchQueue.main.async {
             self.isCacheValid = false
-            self.cacheSize = 0
         }
     }
     
@@ -278,20 +271,6 @@ final class AppCacheManager: ObservableObject {
         return pages
     }
     
-    private func calculateCacheSize() {
-        cacheLock.lock()
-        let iconSize = iconCache.count
-        let appInfoSize = appInfoCache.count
-        let gridLayoutSize = gridLayoutCache.count
-        cacheLock.unlock()
-        cacheSize = iconSize + appInfoSize + gridLayoutSize
-    }
-
-    
-    /// 获取性能统计
-    var performanceStats: PerformanceStats {
-        return PerformanceStats(cacheSize: cacheSize)
-    }
 }
 
 // MARK: - 缓存键生成器
@@ -330,29 +309,3 @@ private struct PageInfo {
 }
 
 // MARK: - 缓存统计信息
-
-extension AppCacheManager {
-    var cacheStatistics: CacheStatistics {
-        return CacheStatistics(
-            iconCacheSize: iconCache.count,
-            appInfoCacheSize: appInfoCache.count,
-            gridLayoutCacheSize: gridLayoutCache.count,
-            totalCacheSize: cacheSize,
-            isCacheValid: isCacheValid,
-            lastUpdate: lastCacheUpdate
-        )
-    }
-}
-
-struct CacheStatistics {
-    let iconCacheSize: Int
-    let appInfoCacheSize: Int
-    let gridLayoutCacheSize: Int
-    let totalCacheSize: Int
-    let isCacheValid: Bool
-    let lastUpdate: Date
-}
-
-struct PerformanceStats {
-    let cacheSize: Int
-}

@@ -2178,11 +2178,6 @@ final class AppStore: ObservableObject {
         cacheManager.clearAllCaches()
     }
     
-    /// 获取缓存统计信息
-    var cacheStatistics: CacheStatistics {
-        return cacheManager.cacheStatistics
-    }
-    
     /// 增量更新后更新缓存
     private func updateCacheAfterChanges() {
         // 检查缓存是否需要更新
