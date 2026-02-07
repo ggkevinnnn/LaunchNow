@@ -70,7 +70,6 @@
 "DefaultSize" = "恢复默认大小";
 "HiddenApps" = "隐藏应用";
 "HideAppsHint" = "选择要隐藏的应用，它们不会显示在应用网格中。";
-"AddHiddenApps" = "添加应用";
 "NoHiddenApps" = "暂无隐藏应用";
 "Hide" = "隐藏";
 "ClearHiddenApps" = "清空隐藏";
