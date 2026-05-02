@@ -1,3 +1,10 @@
+//
+//  Localizable.strings (de)
+//  LaunchNow
+//
+//  Updated by wd006 on 2026-05-01
+//
+
 //SettingsView
 "Style" = "Klassisches Launchpad (Vollbild)";
 "ShowAppName" = "App-Namen anzeigen";
@@ -56,11 +63,11 @@
 "Large" = "Groß";
 "DefaultSize" = "Standardgröße";
 
-"HiddenApps" = "Hidden apps";
-"HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
-"NoHiddenApps" = "No hidden apps";
-"Hide" = "Hide";
-"ClearHiddenApps" = "Clear hidden";
-"MoveToFolder" = "Move to Folder";
-"Gesture" = "4-Finger Trackpad Gesture";
-"Glasseffect" = "Enable Glass Effect Background";
+"HiddenApps" = "Versteckte Apps";
+"HideAppsHint" = "Wählen Sie die zu versteckenden Apps aus; sie werden nicht im App-Raster angezeigt.";
+"NoHiddenApps" = "Keine versteckten Apps";
+"Hide" = "Verstecken";
+"ClearHiddenApps" = "Ausgeblendete Apps löschen";
+"MoveToFolder" = "In Ordner verschieben";
+"Gesture" = "4-Finger-Trackpad-Geste";
+"Glasseffect" = "Glaseffekt für Hintergrund aktivieren";
