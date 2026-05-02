@@ -187,7 +187,8 @@ struct FolderView: View {
         ZStack(alignment: .topLeading) {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: desiredColumns), spacing: spacing) {
-                    ForEach(Array(visualApps.enumerated()), id: \.element.id) { (idx, app) in
+                    ForEach(visualApps.indices, id: \.self) { idx in
+                        let app = visualApps[idx]
                         appDraggable(
                             app: app,
                             appIndex: idx,
@@ -325,6 +326,7 @@ extension FolderView {
             iconSize: iconSize,
             labelWidth: labelWidth,
             isSelected: isSelected,
+            showAppNameBelowIcon: appStore.showAppNameBelowIcon,
             shouldAllowHover: draggingApp == nil,
             onTap: {
                 // 在编辑状态下不启动应用
@@ -333,7 +335,6 @@ extension FolderView {
                 }
             }
         )
-        .environmentObject(appStore)
         .frame(height: appHeight)
         .matchedGeometryEffect(id: app.id, in: reorderNamespaceFolder)
 

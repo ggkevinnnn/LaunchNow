@@ -8,15 +8,17 @@ final class AppCacheManager: ObservableObject {
     static let shared = AppCacheManager()
     
     // MARK: - 缓存存储
-    private var iconCache: [String: NSImage] = [:]
+    private let iconCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 500
+        return cache
+    }()
     private var appInfoCache: [String: AppInfo] = [:]
     private var gridLayoutCache: [String: Any] = [:]
     private var cacheLock = os_unfair_lock()
     
     // MARK: - 缓存配置
-    private let maxIconCacheSize = 500
     private let maxAppInfoCacheSize = 500
-    private var iconCacheOrder: [String] = []
     
     // MARK: - 缓存状态
     @Published var isCacheValid = false
@@ -72,19 +74,8 @@ final class AppCacheManager: ObservableObject {
     
     /// 获取缓存的应用图标
     func getCachedIcon(for appPath: String) -> NSImage? {
-        let key = cacheKeyForIcon(appPath)
-        
-        os_unfair_lock_lock(&cacheLock)
-        defer { os_unfair_lock_unlock(&cacheLock) }
-        if let icon = iconCache[key] {
-            if let index = iconCacheOrder.firstIndex(of: key) {
-                iconCacheOrder.remove(at: index)
-                iconCacheOrder.append(key)
-            }
-            return icon
-        } else {
-            return nil
-        }
+        let key = cacheKeyForIcon(appPath) as NSString
+        return iconCache.object(forKey: key)
     }
     
     /// 获取缓存的应用信息
@@ -111,17 +102,8 @@ final class AppCacheManager: ObservableObject {
             for path in appPaths {
                 if self.getCachedIcon(for: path) == nil {
                     let icon = NSWorkspace.shared.icon(forFile: path)
-                    let key = cacheKeyForIcon(path)
-                    os_unfair_lock_lock(&self.cacheLock)
-                    self.iconCache[key] = icon
-                    self.iconCacheOrder.append(key)
-                    if self.iconCache.count > self.maxIconCacheSize {
-                        if let oldestKey = self.iconCacheOrder.first {
-                            self.iconCache.removeValue(forKey: oldestKey)
-                            self.iconCacheOrder.removeFirst()
-                        }
-                    }
-                    os_unfair_lock_unlock(&self.cacheLock)
+                    let key = cacheKeyForIcon(path) as NSString
+                    self.iconCache.setObject(icon, forKey: key)
                 }
             }
             
@@ -148,11 +130,10 @@ final class AppCacheManager: ObservableObject {
     /// 清除所有缓存
     func clearAllCaches() {
         os_unfair_lock_lock(&cacheLock)
-        iconCache.removeAll()
         appInfoCache.removeAll()
         gridLayoutCache.removeAll()
-        iconCacheOrder.removeAll()
         os_unfair_lock_unlock(&cacheLock)
+        iconCache.removeAllObjects()
         
         DispatchQueue.main.async {
             self.isCacheValid = false
@@ -207,22 +188,10 @@ final class AppCacheManager: ObservableObject {
     }
     
     private func cacheAppIcons(_ apps: [AppInfo]) {
-        os_unfair_lock_lock(&cacheLock)
         for app in apps {
-            let key = cacheKeyForIcon(app.url.path)
-            if let existingIndex = iconCacheOrder.firstIndex(of: key) {
-                iconCacheOrder.remove(at: existingIndex)
-            }
-            iconCache[key] = app.icon
-            iconCacheOrder.append(key)
-            if iconCache.count > maxIconCacheSize {
-                if let oldestKey = iconCacheOrder.first {
-                    iconCache.removeValue(forKey: oldestKey)
-                    iconCacheOrder.removeFirst()
-                }
-            }
+            let key = cacheKeyForIcon(app.url.path) as NSString
+            iconCache.setObject(app.icon, forKey: key)
         }
-        os_unfair_lock_unlock(&cacheLock)
     }
     
     private func cacheGridLayout(_ items: [LaunchpadItem]) {

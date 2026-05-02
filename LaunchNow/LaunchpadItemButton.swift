@@ -7,12 +7,11 @@ struct LaunchpadItemButton: View {
     let iconSize: CGFloat
     let labelWidth: CGFloat
     let isSelected: Bool
+    let showAppNameBelowIcon: Bool
     var shouldAllowHover: Bool = true
     var externalScale: CGFloat? = nil
     let onTap: () -> Void
     let onDoubleClick: (() -> Void)?
-    
-    @EnvironmentObject var appStore: AppStore
     
     @State private var isHovered = false
     @State private var lastTapTime = Date.distantPast
@@ -57,6 +56,7 @@ struct LaunchpadItemButton: View {
         iconSize: CGFloat = 72,
         labelWidth: CGFloat = 80,
         isSelected: Bool = false,
+        showAppNameBelowIcon: Bool = true,
         shouldAllowHover: Bool = true,
         externalScale: CGFloat? = nil,
         isAnimating: Bool = false,
@@ -66,6 +66,7 @@ struct LaunchpadItemButton: View {
             self.iconSize = iconSize
             self.labelWidth = labelWidth
             self.isSelected = isSelected
+            self.showAppNameBelowIcon = showAppNameBelowIcon
             self.shouldAllowHover = shouldAllowHover
             self.externalScale = externalScale
             self.onTap = onTap
@@ -99,7 +100,7 @@ struct LaunchpadItemButton: View {
                 .scaleEffect(isSelected ? 1.2 : effectiveScale)
                 .animation(LNAnimations.easeInOut, value: isHovered || isSelected)
 
-                if appStore.showAppNameBelowIcon {
+                if showAppNameBelowIcon {
                     Text(item.name)
                         .font(.default)
                         .lineLimit(2)
@@ -167,6 +168,7 @@ extension LaunchpadItemButton: Equatable {
         lhs.iconSize == rhs.iconSize &&
         lhs.labelWidth == rhs.labelWidth &&
         lhs.isSelected == rhs.isSelected &&
+        lhs.showAppNameBelowIcon == rhs.showAppNameBelowIcon &&
         lhs.shouldAllowHover == rhs.shouldAllowHover &&
         lhs.externalScale == rhs.externalScale
     }

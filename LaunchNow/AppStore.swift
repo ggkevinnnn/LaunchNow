@@ -363,10 +363,10 @@ final class AppStore: ObservableObject {
             }
             .store(in: &cancellables)
         
-        Publishers.CombineLatest3($items, $searchText, $folders)
+        Publishers.CombineLatest($items, $searchText)
             .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .receive(on: searchQueue)
-            .sink { [weak self] items, searchText, _ in
+            .sink { [weak self] items, searchText in
                 self?.rebuildFilteredItems(items: items, searchText: searchText)
             }
             .store(in: &cancellables)

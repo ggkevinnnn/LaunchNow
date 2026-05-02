@@ -277,7 +277,8 @@ struct LaunchpadView: View {
                                         }
                                         if shouldRenderPage(index, totalPages: pages.count) {
                                             LazyVGrid(columns: config.gridItems, spacing: config.rowSpacing) {
-                                                ForEach(Array(pageItems.enumerated()), id: \.element.id) { localOffset, item in
+                                                ForEach(pageItems.indices, id: \.self) { localOffset in
+                                                    let item = pageItems[localOffset]
                                                     let globalIndex = index * config.itemsPerPage + localOffset
                                                     itemDraggable(
                                                         item: item,
@@ -1146,13 +1147,13 @@ extension LaunchpadView {
                 iconSize: iconSize,
                 labelWidth: labelWidth,
                 isSelected: isSelected,
+                showAppNameBelowIcon: appStore.showAppNameBelowIcon,
                 shouldAllowHover: shouldAllowHover,
                 externalScale: isCenterCreatingTarget ? 1.2 : nil,
                 isAnimating: isPagingInteractionActive,
                 onTap: { if draggingItem == nil { handleItemTap(item) } }
             )
             .equatable()
-            .environmentObject(appStore)
             .frame(height: appHeight)
             // 保持稳定的视图身份，避免在文件夹更新后中断拖拽手势
             .id(item.id)
@@ -1473,31 +1474,22 @@ struct ScrollEventCatcher: NSViewRepresentable {
 
         override var acceptsFirstResponder: Bool { true }
 
-        override func scrollWheel(with event: NSEvent) {
-            // Prefer primary phase; fallback to momentum
-            let phase = event.phase != [] ? event.phase : event.momentumPhase
-            let isMomentum = event.momentumPhase != []
-            let isPreciseOrTrackpad = event.hasPreciseScrollingDeltas || event.phase != [] || event.momentumPhase != []
-            onScroll?(event.scrollingDeltaX,
-                      event.scrollingDeltaY,
-                      phase,
-                      isMomentum,
-                      isPreciseOrTrackpad)
-        }
-
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if let monitor = eventMonitor { NSEvent.removeMonitor(monitor); eventMonitor = nil }
-            // 全局监听当前窗口的滚动事件，不消费事件
+            // Only forward scroll events for this window to keep the hot path narrow.
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+                guard let self, event.window === self.window else {
+                    return event
+                }
                 let phase = event.phase != [] ? event.phase : event.momentumPhase
                 let isMomentum = event.momentumPhase != []
                 let isPreciseOrTrackpad = event.hasPreciseScrollingDeltas || event.phase != [] || event.momentumPhase != []
-                self?.onScroll?(event.scrollingDeltaX,
-                                event.scrollingDeltaY,
-                                phase,
-                                isMomentum,
-                                isPreciseOrTrackpad)
+                self.onScroll?(event.scrollingDeltaX,
+                               event.scrollingDeltaY,
+                               phase,
+                               isMomentum,
+                               isPreciseOrTrackpad)
                 return event
             }
         }
