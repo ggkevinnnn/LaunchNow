@@ -921,7 +921,6 @@ extension LaunchpadView {
         windowObserver = NotificationCenter.default.addObserver(forName: .launchpadWindowShown, object: nil, queue: .main) { _ in
             isKeyboardNavigationActive = false
             selectedIndex = 0
-            isSearchFieldFocused = true
             if !appStore.apps.isEmpty {
                 appStore.applyOrderAndFolders()
             }

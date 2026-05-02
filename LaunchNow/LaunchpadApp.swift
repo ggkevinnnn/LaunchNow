@@ -52,6 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var gesturePreviewProgress: CGFloat = 0
     private var gestureContinuityProgress: CGFloat?
     private var gesturePreviewActivated = false
+    private var gestureSearchFocusAssigned = false
     private var isAnimatingWindowTransition = false
     private let showStartScale: CGFloat = 1.4
     private let previewActivationProgress: CGFloat = 0.08
@@ -307,8 +308,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 applyCornerRadius()
                 applyPreviewVisual(scale: previewScale(for: smoothedProgress), alpha: previewAlpha(for: smoothedProgress))
                 window.orderFrontRegardless()
+                ensureSearchFieldFocusDuringShowGesture(window: window)
                 return
             }
+            ensureSearchFieldFocusDuringShowGesture(window: window)
             applyPreviewVisual(scale: previewScale(for: smoothedProgress), alpha: previewAlpha(for: smoothedProgress))
         case .hiding:
             guard direction == .pinchOut, window.isVisible else { return }
@@ -377,6 +380,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         gesturePreviewProgress = 0
         gestureContinuityProgress = nil
         gesturePreviewActivated = false
+        gestureSearchFocusAssigned = false
     }
 
     private func animatePreviewVisual(toScale scale: CGFloat, alpha: CGFloat, completion: (() -> Void)?) {
@@ -436,6 +440,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         contentLayer.transform = CATransform3DMakeScale(scale, scale, 1)
         contentLayer.opacity = Float(alpha)
         CATransaction.commit()
+    }
+
+    private func ensureSearchFieldFocusDuringShowGesture(window: NSWindow) {
+        guard !gestureSearchFocusAssigned else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        if !window.isKeyWindow {
+            window.makeKeyAndOrderFront(nil)
+        }
+        NotificationCenter.default.post(name: .launchpadFocusSearchField, object: nil)
+        gestureSearchFocusAssigned = true
     }
 
     private func configurePreviewLayerGeometry() {
