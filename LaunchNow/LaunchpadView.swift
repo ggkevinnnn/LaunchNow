@@ -233,7 +233,6 @@ struct LaunchpadView: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        let hStackOffset = -CGFloat(appStore.currentPage) * effectivePageWidth + interactivePageOffset
                         ZStack(alignment: .topLeading) {
                             Color.clear
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -244,45 +243,21 @@ struct LaunchpadView: View {
                                           !appStore.isFolderNameEditing else { return }
                                     AppDelegate.shared?.requestHideWindow()
                                 }
-                            // 内容
-                            HStack(spacing: config.pageSpacing) {
-                                ForEach(pages.indices, id: \.self) { index in
-                                    let pageItems = pages[index]
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        // 在网格上方添加动态padding
-                                        if config.isFullscreen {
-                                            Spacer()
-                                                .frame(height: actualTopPadding)
-                                        }
-                                        if shouldRenderPage(index, totalPages: pages.count) {
-                                            LazyVGrid(columns: config.gridItems, spacing: config.rowSpacing) {
-                                                ForEach(Array(pageItems.enumerated()), id: \.element.id) { localOffset, item in
-                                                    let globalIndex = index * config.itemsPerPage + localOffset
-                                                    itemDraggable(
-                                                        item: item,
-                                                        globalIndex: globalIndex,
-                                                        pageIndex: index,
-                                                        containerSize: geo.size,
-                                                        columnWidth: columnWidth,
-                                                        iconSize: iconSize,
-                                                        appHeight: appHeight,
-                                                        labelWidth: columnWidth * 0.9,
-                                                        isSelected: (!isFolderOpen && isKeyboardNavigationActive && selectedIndex == globalIndex)
-                                                    )
-                                                }
-                                            }
-                                            .animation(LNAnimations.easeInOut, value: pendingDropIndex)
-                                            .animation(LNAnimations.easeInOut, value: selectedIndex)
-                                            .frame(maxHeight: .infinity, alignment: .top)
-                                        } else {
-                                            Color.clear
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                                        }
-                                    }
-                                    .frame(width: geo.size.width, height: geo.size.height)
+                            // Render only the current page and its immediate neighbors during interaction.
+                            // This keeps the view tree small while preserving smooth paged transitions.
+                            ZStack(alignment: .topLeading) {
+                                ForEach(visiblePageIndices(totalPages: pages.count), id: \.self) { index in
+                                    pageView(
+                                        at: index,
+                                        containerSize: geo.size,
+                                        columnWidth: columnWidth,
+                                        iconSize: iconSize,
+                                        appHeight: appHeight,
+                                        actualTopPadding: actualTopPadding,
+                                        effectivePageWidth: effectivePageWidth
+                                    )
                                 }
                             }
-                            .offset(x: hStackOffset)
                             .opacity(isFolderOpen ? 0.1 : 1)
                             .allowsHitTesting(!isFolderOpen)
                             
@@ -1085,6 +1060,60 @@ extension LaunchpadView {
         // isPageTransitioning stays true for 0.25s after navigation,
         // keeping them alive for rapid consecutive swipes.
         return isPagingInteractionActive && abs(index - appStore.currentPage) <= 1
+    }
+
+    private func visiblePageIndices(totalPages: Int) -> [Int] {
+        guard totalPages > 0 else { return [] }
+        let candidates = [
+            appStore.currentPage - 1,
+            appStore.currentPage,
+            appStore.currentPage + 1
+        ]
+        return candidates.filter { $0 >= 0 && $0 < totalPages }
+    }
+
+    @ViewBuilder
+    private func pageView(at index: Int,
+                          containerSize: CGSize,
+                          columnWidth: CGFloat,
+                          iconSize: CGFloat,
+                          appHeight: CGFloat,
+                          actualTopPadding: CGFloat,
+                          effectivePageWidth: CGFloat) -> some View {
+        if shouldRenderPage(index, totalPages: pages.count) {
+            let pageItems = pages[index]
+            VStack(alignment: .leading, spacing: 0) {
+                if config.isFullscreen {
+                    Spacer()
+                        .frame(height: actualTopPadding)
+                }
+                LazyVGrid(columns: config.gridItems, spacing: config.rowSpacing) {
+                    ForEach(Array(pageItems.enumerated()), id: \.element.id) { localOffset, item in
+                        let globalIndex = index * config.itemsPerPage + localOffset
+                        itemDraggable(
+                            item: item,
+                            globalIndex: globalIndex,
+                            pageIndex: index,
+                            containerSize: containerSize,
+                            columnWidth: columnWidth,
+                            iconSize: iconSize,
+                            appHeight: appHeight,
+                            labelWidth: columnWidth * 0.9,
+                            isSelected: (!isFolderOpen && isKeyboardNavigationActive && selectedIndex == globalIndex)
+                        )
+                    }
+                }
+                .animation(LNAnimations.easeInOut, value: pendingDropIndex)
+                .transaction { transaction in
+                    if isUserSwiping || isSwipeSettling {
+                        transaction.animation = nil
+                    }
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
+            .frame(width: containerSize.width, height: containerSize.height, alignment: .topLeading)
+            .offset(x: CGFloat(index - appStore.currentPage) * effectivePageWidth + interactivePageOffset)
+        }
     }
 
     @ViewBuilder
