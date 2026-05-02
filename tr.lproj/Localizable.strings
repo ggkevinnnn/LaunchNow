@@ -2,7 +2,8 @@
 //  Localizable.strings (tr)
 //  LaunchNow
 //
-//  Created by wd006 on 12/17/25.
+//  Created by wd006 on 2025-12-17
+//  Updated by wd006 on 2026-05-01
 //
 
 //SettingsView
@@ -63,11 +64,11 @@
 "Large" = "Büyük";
 "DefaultSize" = "Varsayılan boyut";
 
-"HiddenApps" = "Hidden apps";
-"HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
-"NoHiddenApps" = "No hidden apps";
-"Hide" = "Hide";
-"ClearHiddenApps" = "Clear hidden";
-"MoveToFolder" = "Move to Folder";
-"Gesture" = "4-Finger Trackpad Gesture";
-"Glasseffect" = "Enable Glass Effect Background";
+"HiddenApps" = "Gizlenmiş uygulamalar";
+"HideAppsHint" = "Gizlemek istediğiniz uygulamaları seçin; bu uygulamalar ızgarada görünmeyecektir.";
+"NoHiddenApps" = "Hiç gizlenmiş uygulama bulunmuyor";
+"Hide" = "Gizle";
+"ClearHiddenApps" = "Gizlenmiş uygulamaları temizle";
+"MoveToFolder" = "Klasöre Taşı";
+"Gesture" = "4 Parmaklı Touchpad Hareketi";
+"Glasseffect" = "Arkaplan için cam efektini etkinleştir";
