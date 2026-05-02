@@ -1277,9 +1277,7 @@ final class AppStore: ObservableObject {
     private func rebuildFilteredItems(items: [LaunchpadItem], searchText: String) {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if query.isEmpty {
-            DispatchQueue.main.async { [weak self] in
-                self?.filteredItems = items
-            }
+            applyFilteredItems(items)
             return
         }
         
@@ -1317,9 +1315,71 @@ final class AppStore: ObservableObject {
             }
         }
         
-        DispatchQueue.main.async { [weak self] in
-            self?.filteredItems = result
+        applyFilteredItems(result)
+    }
+
+    private func applyFilteredItems(_ newItems: [LaunchpadItem]) {
+        if Thread.isMainThread {
+            filteredItems = newItems
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.filteredItems = newItems
+            }
         }
+    }
+
+    private func refreshFilteredItemsImmediately() {
+        rebuildFilteredItems(items: items, searchText: searchText)
+    }
+
+    func refreshFilteredItemsForImmediateUIConsistency() {
+        refreshFilteredItemsImmediately()
+    }
+
+    private func syncFolderSnapshotsIntoItems() {
+        guard !items.isEmpty else { return }
+        let folderByID = Dictionary(uniqueKeysWithValues: folders.map { ($0.id, $0) })
+        var didChange = false
+
+        for idx in items.indices {
+            if case .folder(let existingFolder) = items[idx] {
+                if let updatedFolder = folderByID[existingFolder.id] {
+                    if existingFolder.name != updatedFolder.name || existingFolder.apps.map(\.id) != updatedFolder.apps.map(\.id) {
+                        items[idx] = .folder(updatedFolder)
+                        didChange = true
+                    }
+                } else {
+                    items[idx] = .empty(UUID().uuidString)
+                    didChange = true
+                }
+            }
+        }
+
+        if didChange {
+            refreshFilteredItemsImmediately()
+        }
+    }
+
+    func updateFolderSnapshot(_ folder: FolderInfo) {
+        if let idx = folders.firstIndex(where: { $0.id == folder.id }) {
+            folders[idx] = folder
+        } else {
+            folders.append(folder)
+        }
+        syncFolderSnapshotsIntoItems()
+        triggerFolderUpdate()
+    }
+
+    func reorderAppsInsideFolder(_ reorderedApps: [AppInfo], in folder: FolderInfo) {
+        guard let folderIndex = folders.firstIndex(where: { $0.id == folder.id }) else { return }
+        var updatedFolder = folders[folderIndex]
+        updatedFolder.apps = reorderedApps
+        folders[folderIndex] = updatedFolder
+        syncFolderSnapshotsIntoItems()
+        triggerFolderUpdate()
+        refreshFilteredItemsImmediately()
+        triggerGridRefresh()
+        saveAllOrder()
     }
     
     // MARK: - 文件夹管理
@@ -1333,9 +1393,7 @@ final class AppStore: ObservableObject {
 
         // 从应用列表中移除已添加到文件夹的应用（顶层 apps）
         for app in apps {
-            if let index = self.apps.firstIndex(of: app) {
-                self.apps.remove(at: index)
-            }
+            self.apps.removeAll { $0 == app }
         }
 
         // 在当前 items 中：将这些 app 的顶层条目替换为空槽，并在目标位置放置文件夹，保持总长度不变
@@ -1344,7 +1402,6 @@ final class AppStore: ObservableObject {
         var indices: [Int] = []
         for (idx, item) in newItems.enumerated() {
             if case let .app(a) = item, apps.contains(a) { indices.append(idx) }
-            if indices.count == apps.count { break }
         }
         // 将涉及的 app 槽位先置空
         for idx in indices { newItems[idx] = .empty(UUID().uuidString) }
@@ -1371,6 +1428,7 @@ final class AppStore: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.triggerFolderUpdate()
         }
+        refreshFilteredItemsImmediately()
         
         // 刷新缓存，确保搜索时能找到新创建文件夹内的应用
         refreshCacheAfterFolderOperation()
@@ -1384,22 +1442,20 @@ final class AppStore: ObservableObject {
         
         // 创建新的FolderInfo实例，确保SwiftUI能够检测到变化
         var updatedFolder = folders[folderIndex]
-        updatedFolder.apps.append(app)
+        if !updatedFolder.apps.contains(app) {
+            updatedFolder.apps.append(app)
+        }
         folders[folderIndex] = updatedFolder
         
-        // 从应用列表中移除
-        if let appIndex = apps.firstIndex(of: app) {
-            apps.remove(at: appIndex)
-        }
+        // 从应用列表中移除所有重复项
+        apps.removeAll { $0 == app }
         
         // 顶层将该 app 槽位置为 empty（保持页独立）
         // 替换 items 中所有与该 app 匹配的条目为 empty，避免残留重复
         var newItems = items
-        var replacedAtLeastOnce = false
         for i in newItems.indices {
             if case .app(let a) = newItems[i], a == app {
                 newItems[i] = .empty(UUID().uuidString)
-                replacedAtLeastOnce = true
             }
         }
         
@@ -1421,6 +1477,7 @@ final class AppStore: ObservableObject {
         
         // 立即触发文件夹更新，通知所有相关视图刷新图标和名称
         triggerFolderUpdate()
+        refreshFilteredItemsImmediately()
         
         // 刷新缓存，确保搜索时能找到新添加的应用
         refreshCacheAfterFolderOperation()
@@ -1460,9 +1517,17 @@ final class AppStore: ObservableObject {
         let isDraggingNow = (currentEventType == .leftMouseDragged)
         let isHandoffDrag = isDraggingNow || handoffDraggingApp != nil || handoffDragScreenLocation != nil
         
-        // 将应用重新添加到应用列表
+        // 将应用重新添加到应用列表前，先移除所有潜在重复项
+        apps.removeAll { $0 == app }
         apps.append(app)
         apps.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        // 无论是否正在 handoff，都先清掉顶层里已有的同 app 残留，避免重复 id 破坏后续拖拽 diffing
+        for idx in items.indices {
+            if case .app(let existingApp) = items[idx], existingApp == app {
+                items[idx] = .empty(UUID().uuidString)
+            }
+        }
         
         if isHandoffDrag {
             // 处于接力拖拽：将应用临时放回到网格中的一个空槽位，保证可见性
@@ -1490,6 +1555,7 @@ final class AppStore: ObservableObject {
         
         // 立即触发文件夹更新，通知所有相关视图刷新图标和名称
         triggerFolderUpdate()
+        refreshFilteredItemsImmediately()
         
         // 刷新缓存，确保搜索时能找到从文件夹移除的应用（在重建之后刷新）
         refreshCacheAfterFolderOperation()
@@ -1518,6 +1584,7 @@ final class AppStore: ObservableObject {
         
         // 立即触发文件夹更新，通知所有相关视图刷新
         triggerFolderUpdate()
+        refreshFilteredItemsImmediately()
         
         // 触发网格视图刷新，确保界面立即更新
         triggerGridRefresh()
@@ -1594,20 +1661,23 @@ final class AppStore: ObservableObject {
             index = end
         }
         items = result
+        refreshFilteredItemsImmediately()
     }
 
     // MARK: - 跨页拖拽：级联插入（满页则将最后一个推入下一页）
-    func moveItemAcrossPagesWithCascade(item: LaunchpadItem, to targetIndex: Int) {
-        guard items.indices.contains(targetIndex) || targetIndex == items.count else {
+    func moveItemAcrossPagesWithCascade(item: LaunchpadItem, to targetIndex: Int, using sourceItems: [LaunchpadItem]? = nil) {
+        let baseItems = sourceItems ?? items
+        guard baseItems.indices.contains(targetIndex) || targetIndex == baseItems.count else {
             return
         }
-        guard let source = items.firstIndex(of: item) else { return }
-        var result = items
+        guard let source = baseItems.firstIndex(of: item) else { return }
+        var result = baseItems
         // 源位置置空，保持长度
         result[source] = .empty(UUID().uuidString)
         // 执行级联插入
         result = cascadeInsert(into: result, item: item, at: targetIndex)
         items = result
+        refreshFilteredItemsImmediately()
         
         // 每次拖拽结束后都进行压缩，确保每页的empty项目移动到页面末尾
         let targetPage = targetIndex / itemsPerPage
@@ -1617,11 +1687,13 @@ final class AppStore: ObservableObject {
             // 拖拽到新页面，延迟压缩以确保应用位置稳定
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 self.compactItemsWithinPages()
+                self.refreshFilteredItemsImmediately()
                 self.triggerGridRefresh()
             }
         } else {
             // 拖拽到现有页面，立即压缩
             compactItemsWithinPages()
+            refreshFilteredItemsImmediately()
         }
         
         // 触发网格视图刷新，确保界面立即更新
@@ -2106,6 +2178,7 @@ final class AppStore: ObservableObject {
             if !hasNonEmptyItems {
                 // 新页没有被使用，删除它
                 items.removeSubrange(pageStart..<pageEnd)
+                refreshFilteredItemsImmediately()
                 
                 // 触发网格视图刷新
                 triggerGridRefresh()
@@ -2146,6 +2219,7 @@ final class AppStore: ObservableObject {
         // 只有在实际删除了空白页面时才更新items
         if newItems.count != items.count {
             items = newItems
+            refreshFilteredItemsImmediately()
             
             // 删除空白页面后，确保当前页索引在有效范围内
             let maxPageIndex = max(0, (items.count - 1) / itemsPerPage)

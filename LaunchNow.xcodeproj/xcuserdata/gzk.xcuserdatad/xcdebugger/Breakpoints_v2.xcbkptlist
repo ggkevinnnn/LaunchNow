@@ -32,7 +32,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "283"
             endingLineNumber = "283"
-            landmarkName = "finishEditing()"
+            landmarkName = "appGridSection(geometry:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

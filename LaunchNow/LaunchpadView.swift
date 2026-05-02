@@ -66,6 +66,7 @@ struct LaunchpadView: View {
     
     // Added states for drag original index and flagsChanged monitor
     @State private var dragOriginalIndex: Int? = nil
+    @State private var dragSourceItems: [LaunchpadItem]? = nil
     @State private var flagsMonitor: Any? = nil
     
     // 新增：外部网格落点淡入标记
@@ -125,8 +126,9 @@ struct LaunchpadView: View {
     }
     
     private var visualItems: [LaunchpadItem] {
-        guard let dragging = draggingItem, let pending = pendingDropIndex else { return filteredItems }
-        var items = filteredItems
+        let sourceItems = dragSourceItems ?? appStore.items
+        guard let dragging = draggingItem, let pending = pendingDropIndex else { return sourceItems }
+        var items = sourceItems
         if let sourceIndex = items.firstIndex(of: dragging) {
             items.remove(at: sourceIndex)
         }
@@ -254,8 +256,7 @@ struct LaunchpadView: View {
                                         }
                                         if shouldRenderPage(index, totalPages: pages.count) {
                                             LazyVGrid(columns: config.gridItems, spacing: config.rowSpacing) {
-                                                ForEach(pageItems.indices, id: \.self) { localOffset in
-                                                    let item = pageItems[localOffset]
+                                                ForEach(Array(pageItems.enumerated()), id: \.element.id) { localOffset, item in
                                                     let globalIndex = index * config.itemsPerPage + localOffset
                                                     itemDraggable(
                                                         item: item,
@@ -464,9 +465,7 @@ struct LaunchpadView: View {
                                         return openFolder
                                     },
                                     set: { newValue in
-                                        if let idx = appStore.folders.firstIndex(where: { $0.id == folderId }) {
-                                            appStore.folders[idx] = newValue
-                                        }
+                                        appStore.updateFolderSnapshot(newValue)
                                     }
                                 )
                                 
@@ -541,6 +540,7 @@ struct LaunchpadView: View {
                  DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                      if draggingItem != nil {
                          draggingItem = nil
+                         dragSourceItems = nil
                          pendingDropIndex = nil
                          appStore.isDragCreatingFolder = false
                          appStore.folderCreationTarget = nil
@@ -634,7 +634,10 @@ struct LaunchpadView: View {
         let localPoint = convertScreenToGrid(screenPoint)
 
         var tx = Transaction(); tx.disablesAnimations = true
-        withTransaction(tx) { draggingItem = .app(app) }
+        withTransaction(tx) {
+            draggingItem = .app(app)
+            dragSourceItems = appStore.items
+        }
         isKeyboardNavigationActive = false
         appStore.isDragCreatingFolder = false
         appStore.folderCreationTarget = nil
@@ -764,7 +767,11 @@ struct LaunchpadView: View {
     private func navigateToPage(_ targetPage: Int, animated: Bool = true) {
         let sourceItemCount: Int
         if appStore.searchText.isEmpty {
-            sourceItemCount = max(filteredItems.count, appStore.items.count)
+            if draggingItem != nil {
+                sourceItemCount = max(dragSourceItems?.count ?? 0, appStore.items.count)
+            } else {
+                sourceItemCount = max(filteredItems.count, appStore.items.count)
+            }
         } else {
             sourceItemCount = filteredItems.count
         }
@@ -1630,7 +1637,10 @@ extension LaunchpadView {
         if draggingItem == nil {
             resetDragPagingState()
             var tx = Transaction(); tx.disablesAnimations = true
-            withTransaction(tx) { draggingItem = item }
+            withTransaction(tx) {
+                draggingItem = item
+                dragSourceItems = appStore.items
+            }
             dragOriginalIndex = appStore.items.firstIndex(of: item) ?? filteredItems.firstIndex(of: item)
             isKeyboardNavigationActive = false
             appStore.isDragCreatingFolder = false
@@ -1672,6 +1682,7 @@ extension LaunchpadView {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     draggingItem = nil
+                    dragSourceItems = nil
                     pendingDropIndex = nil
                     dragOriginalIndex = nil
                     resetDragPagingState()
@@ -1736,6 +1747,7 @@ extension LaunchpadView {
                 // 文件夹创建完成后不需要额外淡入
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     draggingItem = nil
+                    dragSourceItems = nil
                     pendingDropIndex = nil
                     dragOriginalIndex = nil
                     resetDragPagingState()
@@ -1766,6 +1778,7 @@ extension LaunchpadView {
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         draggingItem = nil
+                        dragSourceItems = nil
                         pendingDropIndex = nil
                         dragOriginalIndex = nil
                         resetDragPagingState()
@@ -1782,15 +1795,16 @@ extension LaunchpadView {
         }
         
         // 处理普通拖拽逻辑
-        if let sourceIndexInItems = appStore.items.firstIndex(of: dragging) {
+        let sourceItems = dragSourceItems ?? appStore.items
+        if let sourceIndexInItems = sourceItems.firstIndex(of: dragging) {
             let itemsPerPage = config.itemsPerPage
             let currentPageStart = appStore.currentPage * itemsPerPage
-            let currentPageEndExclusive = min(currentPageStart + itemsPerPage, appStore.items.count)
+            let currentPageEndExclusive = min(currentPageStart + itemsPerPage, sourceItems.count)
             let currentPageLastIndex = max(currentPageStart, currentPageEndExclusive - 1)
 
             // Use pendingDropIndex if already set during drag, otherwise compute from pointer position
             let resolvedCurrentPageIndex: Int = {
-                if let pending = pendingDropIndex, pending >= 0, pending < appStore.items.count {
+                if let pending = pendingDropIndex, pending >= 0, pending < sourceItems.count {
                     return pending
                 }
                 if let idx = indexAt(point: dragPreviewPosition,
@@ -1804,7 +1818,7 @@ extension LaunchpadView {
                 }
                 return currentPageLastIndex
             }()
-            let boundedFinalIndex = max(0, min(resolvedCurrentPageIndex, max(appStore.items.count - 1, 0)))
+            let boundedFinalIndex = max(0, min(resolvedCurrentPageIndex, max(sourceItems.count - 1, 0)))
             pendingDropIndex = boundedFinalIndex
             // 检查是否为跨页拖拽
             let targetPage = boundedFinalIndex / config.itemsPerPage
@@ -1833,8 +1847,8 @@ extension LaunchpadView {
             if targetPage == sourcePage {
                 // 同页内移动：使用原有的页内排序逻辑
                 let pageStart = (boundedFinalIndex / config.itemsPerPage) * config.itemsPerPage
-                let pageEnd = min(pageStart + config.itemsPerPage, appStore.items.count)
-                var newItems = appStore.items
+                let pageEnd = min(pageStart + config.itemsPerPage, sourceItems.count)
+                var newItems = sourceItems
                 var pageSlice = Array(newItems[pageStart..<pageEnd])
                 let localFrom = sourceIndexInItems - pageStart
                 let localTo = max(0, min(boundedFinalIndex - pageStart, pageSlice.count - 1))
@@ -1844,14 +1858,17 @@ extension LaunchpadView {
                 withAnimation(LNAnimations.easeInOut) {
                     appStore.items = newItems
                 }
+                appStore.triggerGridRefresh()
+                appStore.refreshFilteredItemsForImmediateUIConsistency()
                 appStore.saveAllOrder()
             } else {
                 // 跨页拖拽：使用级联插入逻辑
-                appStore.moveItemAcrossPagesWithCascade(item: dragging, to: boundedFinalIndex)
+                appStore.moveItemAcrossPagesWithCascade(item: dragging, to: boundedFinalIndex, using: sourceItems)
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 draggingItem = nil
+                dragSourceItems = nil
                 pendingDropIndex = nil
                 dragOriginalIndex = nil
                 resetDragPagingState()
@@ -1872,6 +1889,7 @@ extension LaunchpadView {
             // 若过滤结果瞬时变化导致找不到拖拽项，仍做收尾，避免卡死状态
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 draggingItem = nil
+                dragSourceItems = nil
                 pendingDropIndex = nil
                 dragOriginalIndex = nil
                 resetDragPagingState()
@@ -1995,8 +2013,9 @@ extension LaunchpadView {
         if dragging == .app(targetApp) {
             // Hovering over ourselves due to reorder shifting the dragged item into this slot.
             // Look up the ORIGINAL item at this grid position so folder creation still works.
-            if filteredItems.indices.contains(hoveringIndex),
-               case .app(let originalApp) = filteredItems[hoveringIndex],
+            let sourceItems = dragSourceItems ?? appStore.items
+            if sourceItems.indices.contains(hoveringIndex),
+               case .app(let originalApp) = sourceItems[hoveringIndex],
                originalApp.id != targetApp.id {
                 handleAppToAppHover(hoveringIndex: hoveringIndex, isInCenterArea: isInCenterArea, targetApp: originalApp)
             } else {

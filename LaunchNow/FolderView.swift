@@ -1,6 +1,20 @@
 import SwiftUI
 import AppKit
 
+private enum FolderVisualSlot: Identifiable, Equatable {
+    case app(AppInfo)
+    case placeholder(String)
+
+    var id: String {
+        switch self {
+        case .app(let app):
+            return "app_\(app.id)"
+        case .placeholder(let token):
+            return "placeholder_\(token)"
+        }
+    }
+}
+
 struct FolderView: View {
     @ObservedObject var appStore: AppStore
     @Binding var folder: FolderInfo
@@ -21,6 +35,7 @@ struct FolderView: View {
     @State private var dragPreviewOpacity: Double = 1.0
     @State private var isSettlingDrop: Bool = false
     @State private var pendingDropIndex: Int? = nil
+    @State private var dragSourceApps: [AppInfo]? = nil
     @State private var scrollOffsetY: CGFloat = 0
     @State private var outOfBoundsBeganAt: Date? = nil
     @State private var hasHandedOffDrag: Bool = false
@@ -42,15 +57,30 @@ struct FolderView: View {
     private let titlePadding: CGFloat = 16
 
     private var visualApps: [AppInfo] {
-        guard let dragging = draggingApp, let pending = pendingDropIndex else { return folder.apps }
-        var apps = folder.apps
-        if let from = apps.firstIndex(of: dragging) {
-            apps.remove(at: from)
-            let insertIndex = pending
-            let clamped = min(max(0, insertIndex), apps.count)
-            apps.insert(dragging, at: clamped)
+        visualAppSlots.compactMap {
+            if case .app(let app) = $0 { return app }
+            return nil
         }
-        return apps
+    }
+
+    private var visualAppSlots: [FolderVisualSlot] {
+        let sourceApps = dragSourceApps ?? folder.apps
+        guard let dragging = draggingApp, let pending = pendingDropIndex else {
+            return sourceApps.map(FolderVisualSlot.app)
+        }
+        var slots = sourceApps.map(FolderVisualSlot.app)
+        if let from = slots.firstIndex(where: {
+            if case .app(let app) = $0 {
+                return app == dragging
+            }
+            return false
+        }) {
+            slots.remove(at: from)
+            let insertIndex = pending
+            let clamped = min(max(0, insertIndex), slots.count)
+            slots.insert(.placeholder(dragging.id), at: clamped)
+        }
+        return slots
     }
     
     var body: some View {
@@ -187,18 +217,23 @@ struct FolderView: View {
         ZStack(alignment: .topLeading) {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: desiredColumns), spacing: spacing) {
-                    ForEach(visualApps.indices, id: \.self) { idx in
-                        let app = visualApps[idx]
-                        appDraggable(
-                            app: app,
-                            appIndex: idx,
-                            containerSize: geo.size,
-                            columnWidth: columnWidth,
-                            appHeight: appHeight,
-                            iconSize: iconSize,
-                            labelWidth: labelWidth,
-                            isSelected: isKeyboardNavigationActive && selectedIndex == idx
-                        )
+                    ForEach(Array(visualAppSlots.enumerated()), id: \.element.id) { idx, slot in
+                        if case .app(let app) = slot {
+                            appDraggable(
+                                app: app,
+                                appIndex: idx,
+                                containerSize: geo.size,
+                                columnWidth: columnWidth,
+                                appHeight: appHeight,
+                                iconSize: iconSize,
+                                labelWidth: labelWidth,
+                                isSelected: isKeyboardNavigationActive && selectedIndex == idx
+                            )
+                        } else {
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(height: appHeight)
+                        }
                     }
                 }
                 .animation(LNAnimations.easeInOut, value: pendingDropIndex)
@@ -336,9 +371,8 @@ extension FolderView {
             }
         )
         .frame(height: appHeight)
-        .matchedGeometryEffect(id: app.id, in: reorderNamespaceFolder)
 
-        base
+        withMatchedGeometry(base, id: app.id)
             .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : ((lastDroppedAppID == app.id) ? 0 : 1))
             .animation(LNAnimations.easeInOut, value: lastDroppedAppID)
             .animation(LNAnimations.easeInOut, value: isSettlingDrop)
@@ -356,6 +390,7 @@ extension FolderView {
                             var tx = Transaction(); tx.disablesAnimations = true
                             withTransaction(tx) {
                                 draggingApp = app
+                                dragSourceApps = folder.apps
                                 dragPreviewOpacity = 1.0
                                 isSettlingDrop = false
                             }
@@ -384,6 +419,7 @@ extension FolderView {
                                 appStore.removeAppFromFolder(dragging, folder: folder)
                                 // 清理内部拖拽状态并关闭文件夹
                                 draggingApp = nil
+                                dragSourceApps = nil
                                 outOfBoundsBeganAt = nil
                                 onClose()
                                 return
@@ -420,6 +456,7 @@ extension FolderView {
                         defer {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
                                 draggingApp = nil
+                                dragSourceApps = nil
                                 pendingDropIndex = nil
                                 isSettlingDrop = false
                                 dragPreviewOpacity = 1.0
@@ -445,8 +482,9 @@ extension FolderView {
                                 dragPreviewScale = 1.0
                                 dragPreviewOpacity = 0.0
                             }
-                            if let from = folder.apps.firstIndex(of: dragging) {
-                                var apps = folder.apps
+                            let sourceApps = dragSourceApps ?? folder.apps
+                            if let from = sourceApps.firstIndex(of: dragging) {
+                                var apps = sourceApps
                                 apps.remove(at: from)
                                 // 与视觉预览完全一致：直接使用悬停索引
                                 let insertIndex = finalIndex
@@ -455,7 +493,7 @@ extension FolderView {
                                 
                                 // 提交回绑定，驱动真实布局变化（与外部一致）
                                 withAnimation(unifiedAnim) {
-                                    folder.apps = apps
+                                    appStore.reorderAppsInsideFolder(apps, in: folder)
                                 }
                                 
                                 // 触发落点图标的柔和淡入效果（与外部一致）
@@ -473,6 +511,17 @@ extension FolderView {
                         }
                     }
             )
+    }
+}
+
+extension FolderView {
+    @ViewBuilder
+    private func withMatchedGeometry(_ content: some View, id: String) -> some View {
+        if draggingApp == nil {
+            content.matchedGeometryEffect(id: id, in: reorderNamespaceFolder)
+        } else {
+            content
+        }
     }
 }
 
@@ -518,11 +567,11 @@ extension FolderView {
                                                       rowSpacing: spacing,
                                                       pageSpacing: 0,
                                                       currentPage: 0,
-                                                      itemsPerPage: visualApps.count,
+                                                      itemsPerPage: visualAppSlots.count,
                                                       gridPadding: gridPadding,
                                                       scrollOffsetY: scrollOffsetY) else { return nil }
         
-        let count = visualApps.count
+        let count = visualAppSlots.count
         // 允许返回 count 作为"末尾插槽"，实现拖到最后一个之后的让位
         if count == 0 { return 0 }
         return min(max(offsetInPage, 0), count)
