@@ -126,36 +126,13 @@ struct LaunchpadView: View {
     
     private var visualItems: [LaunchpadItem] {
         guard let dragging = draggingItem, let pending = pendingDropIndex else { return filteredItems }
-        let itemsPerPage = config.itemsPerPage
-        let maxValidIndex = max(0, max(filteredItems.count, appStore.items.count))
-        let normalizedPending = max(0, min(pending, maxValidIndex))
-        var pageSlices: [[LaunchpadItem]] = makePages(from: filteredItems)
-
-        let sourcePage = pageSlices.firstIndex { $0.contains(dragging) }
-        let sourceIndexInPage = sourcePage.flatMap { pageSlices[$0].firstIndex(of: dragging) }
-        let targetPage = max(0, normalizedPending / itemsPerPage)
-        let localIndexDesired = normalizedPending % itemsPerPage
-
-        if let sPage = sourcePage, sPage == targetPage, let sIdx = sourceIndexInPage {
-            pageSlices[sPage].remove(at: sIdx)
+        var items = filteredItems
+        if let sourceIndex = items.firstIndex(of: dragging) {
+            items.remove(at: sourceIndex)
         }
-
-        while pageSlices.count <= targetPage { pageSlices.append([]) }
-        let localIndex = max(0, min(localIndexDesired, pageSlices[targetPage].count))
-        pageSlices[targetPage].insert(dragging, at: localIndex)
-
-        var p = targetPage
-        while p < pageSlices.count {
-            if pageSlices[p].count > itemsPerPage {
-                let spilled = pageSlices[p].removeLast()
-                if p + 1 >= pageSlices.count { pageSlices.append([]) }
-                pageSlices[p + 1].insert(spilled, at: 0)
-                p += 1
-            } else {
-                p += 1
-            }
-        }
-        return pageSlices.flatMap { $0 }
+        let insertionIndex = max(0, min(pending, items.count))
+        items.insert(.empty("drag_placeholder_\(dragging.id)"), at: insertionIndex)
+        return items
     }
     
     private func makePages(from items: [LaunchpadItem]) -> [[LaunchpadItem]] {
@@ -1654,7 +1631,7 @@ extension LaunchpadView {
             resetDragPagingState()
             var tx = Transaction(); tx.disablesAnimations = true
             withTransaction(tx) { draggingItem = item }
-            dragOriginalIndex = filteredItems.firstIndex(of: item)
+            dragOriginalIndex = appStore.items.firstIndex(of: item) ?? filteredItems.firstIndex(of: item)
             isKeyboardNavigationActive = false
             appStore.isDragCreatingFolder = false
             appStore.folderCreationTarget = nil
@@ -1712,12 +1689,22 @@ extension LaunchpadView {
         // 处理文件夹创建逻辑
         if appStore.isDragCreatingFolder, case .app(let app) = dragging {
             if let targetApp = appStore.folderCreationTarget {
-                if let insertAt = filteredItems.firstIndex(of: .app(targetApp)) {
+                if let insertAt = appStore.items.firstIndex(where: {
+                    if case .app(let candidate) = $0 {
+                        return candidate.id == targetApp.id
+                    }
+                    return false
+                }) {
                     let newFolder = appStore.createFolder(with: [app, targetApp], insertAt: insertAt)
-                    if let folderIndex = filteredItems.firstIndex(of: .folder(newFolder)) {
+                    if let folderIndex = appStore.items.firstIndex(where: {
+                        if case .folder(let folder) = $0 {
+                            return folder.id == newFolder.id
+                        }
+                        return false
+                    }) {
                         let targetCenter = cellCenter(for: folderIndex,
                                                       in: containerSize,
-                                                      pageIndex: appStore.currentPage,
+                                                      pageIndex: pageOf(index: folderIndex),
                                                       columnWidth: columnWidth,
                                                       appHeight: appHeight)
                         withAnimation(LNAnimations.easeInOut) {
@@ -1728,10 +1715,15 @@ extension LaunchpadView {
                     }
                 } else {
                     let newFolder = appStore.createFolder(with: [app, targetApp])
-                    if let folderIndex = filteredItems.firstIndex(of: .folder(newFolder)) {
+                    if let folderIndex = appStore.items.firstIndex(where: {
+                        if case .folder(let folder) = $0 {
+                            return folder.id == newFolder.id
+                        }
+                        return false
+                    }) {
                         let targetCenter = cellCenter(for: folderIndex,
                                                       in: containerSize,
-                                                      pageIndex: appStore.currentPage,
+                                                      pageIndex: pageOf(index: folderIndex),
                                                       columnWidth: columnWidth,
                                                       appHeight: appHeight)
                         withAnimation(LNAnimations.easeInOut) {
@@ -1759,8 +1751,8 @@ extension LaunchpadView {
                                                pageIndex: appStore.currentPage,
                                                columnWidth: columnWidth,
                                                appHeight: appHeight),
-                   filteredItems.indices.contains(hoveringIndex),
-                   case .folder(let folder) = filteredItems[hoveringIndex] {
+                   currentItems.indices.contains(hoveringIndex),
+                   case .folder(let folder) = currentItems[hoveringIndex] {
                     appStore.addAppToFolder(app, folder: folder)
                     let targetCenter = cellCenter(for: hoveringIndex,
                                                   in: containerSize,
@@ -1790,7 +1782,7 @@ extension LaunchpadView {
         }
         
         // 处理普通拖拽逻辑
-        if let _ = filteredItems.firstIndex(of: dragging) {
+        if let sourceIndexInItems = appStore.items.firstIndex(of: dragging) {
             let itemsPerPage = config.itemsPerPage
             let currentPageStart = appStore.currentPage * itemsPerPage
             let currentPageEndExclusive = min(currentPageStart + itemsPerPage, appStore.items.count)
@@ -1815,7 +1807,6 @@ extension LaunchpadView {
             let boundedFinalIndex = max(0, min(resolvedCurrentPageIndex, max(appStore.items.count - 1, 0)))
             pendingDropIndex = boundedFinalIndex
             // 检查是否为跨页拖拽
-            let sourceIndexInItems = appStore.items.firstIndex(of: dragging) ?? 0
             let targetPage = boundedFinalIndex / config.itemsPerPage
             let sourcePage = sourceIndexInItems / config.itemsPerPage
             

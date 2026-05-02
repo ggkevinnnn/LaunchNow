@@ -385,7 +385,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
         configurePreviewLayerGeometry()
-        let duration: CFTimeInterval = 0.25
+        let duration: CFTimeInterval = 0.2
         let timingFunction = CAMediaTimingFunction(name: .easeOut)
         let currentOpacity = contentLayer.presentation()?.opacity ?? contentLayer.opacity
         let currentTransform = contentLayer.presentation()?.transform ?? contentLayer.transform
