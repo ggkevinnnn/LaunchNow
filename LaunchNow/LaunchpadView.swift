@@ -167,7 +167,7 @@ struct LaunchpadView: View {
     @State private var cachedPages: [[LaunchpadItem]] = []
     @State private var isFolderContentReady: Bool = false
     @State private var folderContentToken: UUID = UUID()
-    private let folderAnimation: Animation = .easeInOut(duration: 0.12)
+    private let folderAnimation: Animation = .easeIn(duration: 0.2)
 
     private var isFolderOpen: Bool { appStore.openFolder != nil }
     private var isPagingInteractionActive: Bool {
@@ -393,8 +393,8 @@ struct LaunchpadView: View {
                             }
                         }
                         .onChange(of: appStore.openFolder) {
-                            if appStore.openFolder != nil {
-                                scheduleFolderContentReveal()
+                            if let openFolder = appStore.openFolder {
+                                scheduleFolderContentReveal(for: openFolder)
                             } else {
                                 isFolderContentReady = false
                             }
@@ -668,7 +668,6 @@ struct LaunchpadView: View {
         case .app(let app):
             launchApp(app)
         case .folder(let folder):
-            AppCacheManager.shared.preloadIcons(for: folder.apps.map { $0.url.path })
             withAnimation(folderAnimation) {
                 appStore.openFolder = folder
             }
@@ -677,16 +676,35 @@ struct LaunchpadView: View {
         }
     }
 
-    private func scheduleFolderContentReveal() {
+    private func scheduleFolderContentReveal(for folder: FolderInfo) {
         let token = UUID()
         folderContentToken = token
         isFolderContentReady = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            if folderContentToken == token {
-                withAnimation(folderAnimation) {
-                    isFolderContentReady = true
-                }
+
+        let appPaths = folder.apps.map(\.url.path)
+        let reveal: () -> Void = {
+            guard folderContentToken == token else { return }
+            withAnimation(folderAnimation) {
+                isFolderContentReady = true
             }
+        }
+
+        guard !appPaths.isEmpty else {
+            DispatchQueue.main.async(execute: reveal)
+            return
+        }
+
+        if AppCacheManager.shared.areIconsCached(for: appPaths) {
+            DispatchQueue.main.async(execute: reveal)
+            return
+        }
+
+        AppCacheManager.shared.preloadIcons(for: appPaths) {
+            reveal()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            reveal()
         }
     }
     

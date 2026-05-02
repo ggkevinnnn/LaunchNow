@@ -125,11 +125,13 @@ struct FolderView: View {
             } else {
                 isKeyboardNavigationActive = false
             }
-            // 先立即显示轻量占位，待过渡结束后再加载网格，避免打开瞬间卡顿
+            // 外层已经负责控制内容出现时机，这里只保留一个最小延迟避免首帧同步布局抖动
             var tx = Transaction(); tx.disablesAnimations = true
             withTransaction(tx) { deferGridUntilOpened = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-                withAnimation(LNAnimations.easeInOut) {
+            DispatchQueue.main.async {
+                var revealTx = Transaction()
+                revealTx.disablesAnimations = true
+                withTransaction(revealTx) {
                     deferGridUntilOpened = false
                 }
             }
@@ -213,11 +215,13 @@ struct FolderView: View {
         let columnWidth = max(recomputedColumnWidth, iconSize)
         let appHeight = max(recomputedAppHeight, iconSize + 32)
         let labelWidth: CGFloat = columnWidth * 0.9
+        let slots = visualAppSlots
 
         ZStack(alignment: .topLeading) {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: desiredColumns), spacing: spacing) {
-                    ForEach(Array(visualAppSlots.enumerated()), id: \.element.id) { idx, slot in
+                    ForEach(slots.indices, id: \.self) { idx in
+                        let slot = slots[idx]
                         if case .app(let app) = slot {
                             appDraggable(
                                 app: app,

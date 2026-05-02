@@ -77,6 +77,13 @@ final class AppCacheManager: ObservableObject {
         let key = cacheKeyForIcon(appPath) as NSString
         return iconCache.object(forKey: key)
     }
+
+    func areIconsCached(for appPaths: [String]) -> Bool {
+        for path in appPaths where getCachedIcon(for: path) == nil {
+            return false
+        }
+        return true
+    }
     
     /// 获取缓存的应用信息
     func getCachedAppInfo(for appPath: String) -> AppInfo? {
@@ -96,6 +103,11 @@ final class AppCacheManager: ObservableObject {
     
     /// 预加载应用图标到缓存
     func preloadIcons(for appPaths: [String]) {
+        preloadIcons(for: appPaths, completion: nil)
+    }
+
+    /// 预加载应用图标到缓存，并在完成后回调
+    func preloadIcons(for appPaths: [String], completion: (() -> Void)?) {
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else { return }
             
@@ -106,7 +118,9 @@ final class AppCacheManager: ObservableObject {
                     self.iconCache.setObject(icon, forKey: key)
                 }
             }
-            
+
+            guard let completion else { return }
+            DispatchQueue.main.async(execute: completion)
         }
     }
     
