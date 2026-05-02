@@ -36,6 +36,79 @@ private final class PageFlipManager: ObservableObject {
     }
 }
 
+private final class ScrollInteractionCoordinator: ObservableObject {
+    @Published private(set) var renderedOffset: CGFloat = 0
+
+    var accumulatedScrollX: CGFloat = 0
+
+    private var pendingOffset: CGFloat = 0
+    private var displayTimer: Timer?
+    private var isInteractive = false
+
+    private let frameInterval: TimeInterval = 1.0 / 120.0
+    private let publishEpsilon: CGFloat = 0.1
+
+    func beginInteractiveGesture() {
+        accumulatedScrollX = 0
+        isInteractive = true
+        pendingOffset = 0
+        startDisplayTimerIfNeeded()
+        publishImmediately(0)
+    }
+
+    func updateInteractiveOffset(_ offset: CGFloat) {
+        pendingOffset = offset
+        startDisplayTimerIfNeeded()
+    }
+
+    func finishInteractiveGesture() {
+        accumulatedScrollX = 0
+        isInteractive = false
+        stopDisplayTimerIfIdle()
+    }
+
+    func publishImmediately(_ offset: CGFloat) {
+        pendingOffset = offset
+        if abs(renderedOffset - offset) > publishEpsilon {
+            renderedOffset = offset
+        } else if renderedOffset != offset {
+            renderedOffset = offset
+        }
+    }
+
+    private func startDisplayTimerIfNeeded() {
+        guard displayTimer == nil else { return }
+        let timer = Timer(timeInterval: frameInterval, repeats: true) { [weak self] _ in
+            self?.flushPendingOffset()
+        }
+        displayTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func stopDisplayTimerIfIdle() {
+        guard !isInteractive, abs(renderedOffset - pendingOffset) <= publishEpsilon else { return }
+        displayTimer?.invalidate()
+        displayTimer = nil
+    }
+
+    private func flushPendingOffset() {
+        if abs(renderedOffset - pendingOffset) > publishEpsilon {
+            renderedOffset = pendingOffset
+            return
+        }
+
+        if renderedOffset != pendingOffset {
+            renderedOffset = pendingOffset
+        }
+
+        stopDisplayTimerIfIdle()
+    }
+
+    deinit {
+        displayTimer?.invalidate()
+    }
+}
+
 struct LaunchpadView: View {
     @ObservedObject var appStore: AppStore
     @State private var keyMonitor: Any?
@@ -80,20 +153,17 @@ struct LaunchpadView: View {
     @State private var isHandoffDragging: Bool = false
     @State private var isUserSwiping: Bool = false
     @State private var isSwipeSettling: Bool = false
-    @State private var accumulatedScrollX: CGFloat = 0
     @State private var wheelAccumulatedSinceFlip: CGFloat = 0
     @State private var wheelLastDirection: Int = 0
     @State private var wheelLastFlipAt: Date? = nil
     private let wheelFlipCooldown: TimeInterval = 0.15
     // Guards async settle completion to prevent stale page commits during rapid swipes.
     @State private var activeScrollSettleToken: UUID = UUID()
-    
-    // 跟手翻页：交互偏移（仅在精确滚动手势进行中使用）
-    @State private var interactivePageOffset: CGFloat = 0
     @State private var isPageTransitioning: Bool = false
     @State private var isDragEdgeFlipping: Bool = false
+    @StateObject private var scrollCoordinator = ScrollInteractionCoordinator()
 
-    // Performance: cache pages array to avoid recomputing on every interactivePageOffset change
+    // Performance: cache pages array to avoid recomputing on every interactive scroll offset update
     @State private var cachedPages: [[LaunchpadItem]] = []
     @State private var isFolderContentReady: Bool = false
     @State private var folderContentToken: UUID = UUID()
@@ -101,7 +171,7 @@ struct LaunchpadView: View {
 
     private var isFolderOpen: Bool { appStore.openFolder != nil }
     private var isPagingInteractionActive: Bool {
-        isUserSwiping || isSwipeSettling || interactivePageOffset != 0 || isPageTransitioning
+        isUserSwiping || isSwipeSettling || scrollCoordinator.renderedOffset != 0 || isPageTransitioning
     }
     
     private var config: GridConfig {
@@ -233,6 +303,7 @@ struct LaunchpadView: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
+                        let hStackOffset = -CGFloat(appStore.currentPage) * effectivePageWidth + scrollCoordinator.renderedOffset
                         ZStack(alignment: .topLeading) {
                             Color.clear
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -243,21 +314,45 @@ struct LaunchpadView: View {
                                           !appStore.isFolderNameEditing else { return }
                                     AppDelegate.shared?.requestHideWindow()
                                 }
-                            // Render only the current page and its immediate neighbors during interaction.
-                            // This keeps the view tree small while preserving smooth paged transitions.
-                            ZStack(alignment: .topLeading) {
-                                ForEach(visiblePageIndices(totalPages: pages.count), id: \.self) { index in
-                                    pageView(
-                                        at: index,
-                                        containerSize: geo.size,
-                                        columnWidth: columnWidth,
-                                        iconSize: iconSize,
-                                        appHeight: appHeight,
-                                        actualTopPadding: actualTopPadding,
-                                        effectivePageWidth: effectivePageWidth
-                                    )
+                            // 内容
+                            HStack(spacing: config.pageSpacing) {
+                                ForEach(pages.indices, id: \.self) { index in
+                                    let pageItems = pages[index]
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        // 在网格上方添加动态padding
+                                        if config.isFullscreen {
+                                            Spacer()
+                                                .frame(height: actualTopPadding)
+                                        }
+                                        if shouldRenderPage(index, totalPages: pages.count) {
+                                            LazyVGrid(columns: config.gridItems, spacing: config.rowSpacing) {
+                                                ForEach(Array(pageItems.enumerated()), id: \.element.id) { localOffset, item in
+                                                    let globalIndex = index * config.itemsPerPage + localOffset
+                                                    itemDraggable(
+                                                        item: item,
+                                                        globalIndex: globalIndex,
+                                                        pageIndex: index,
+                                                        containerSize: geo.size,
+                                                        columnWidth: columnWidth,
+                                                        iconSize: iconSize,
+                                                        appHeight: appHeight,
+                                                        labelWidth: columnWidth * 0.9,
+                                                        isSelected: (!isFolderOpen && isKeyboardNavigationActive && selectedIndex == globalIndex)
+                                                    )
+                                                }
+                                            }
+                                            .animation(LNAnimations.easeInOut, value: pendingDropIndex)
+                                            .animation(LNAnimations.easeInOut, value: selectedIndex)
+                                            .frame(maxHeight: .infinity, alignment: .top)
+                                        } else {
+                                            Color.clear
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                                        }
+                                    }
+                                    .frame(width: geo.size.width, height: geo.size.height)
                                 }
                             }
+                            .offset(x: hStackOffset)
                             .opacity(isFolderOpen ? 0.1 : 1)
                             .allowsHitTesting(!isFolderOpen)
                             
@@ -785,17 +880,18 @@ struct LaunchpadView: View {
 
         isUserSwiping = false
         isSwipeSettling = true
+        scrollCoordinator.finishInteractiveGesture()
         // 一旦确认翻页，立即更新当前页；用过渡偏移保持视觉连续。
         let transitionalOffset = CGFloat(targetPage - sourcePage) * pageWidth
         var t = Transaction(animation: nil)
         t.disablesAnimations = true
         withTransaction(t) {
             appStore.currentPage = targetPage
-            interactivePageOffset = transitionalOffset
+            scrollCoordinator.publishImmediately(transitionalOffset)
         }
 
         withAnimation(LNAnimations.smooth, completionCriteria: .removed) {
-            interactivePageOffset = 0
+            scrollCoordinator.publishImmediately(0)
         } completion: {
             guard activeScrollSettleToken == settleToken else {
                 isSwipeSettling = false
@@ -1060,60 +1156,6 @@ extension LaunchpadView {
         // isPageTransitioning stays true for 0.25s after navigation,
         // keeping them alive for rapid consecutive swipes.
         return isPagingInteractionActive && abs(index - appStore.currentPage) <= 1
-    }
-
-    private func visiblePageIndices(totalPages: Int) -> [Int] {
-        guard totalPages > 0 else { return [] }
-        let candidates = [
-            appStore.currentPage - 1,
-            appStore.currentPage,
-            appStore.currentPage + 1
-        ]
-        return candidates.filter { $0 >= 0 && $0 < totalPages }
-    }
-
-    @ViewBuilder
-    private func pageView(at index: Int,
-                          containerSize: CGSize,
-                          columnWidth: CGFloat,
-                          iconSize: CGFloat,
-                          appHeight: CGFloat,
-                          actualTopPadding: CGFloat,
-                          effectivePageWidth: CGFloat) -> some View {
-        if shouldRenderPage(index, totalPages: pages.count) {
-            let pageItems = pages[index]
-            VStack(alignment: .leading, spacing: 0) {
-                if config.isFullscreen {
-                    Spacer()
-                        .frame(height: actualTopPadding)
-                }
-                LazyVGrid(columns: config.gridItems, spacing: config.rowSpacing) {
-                    ForEach(Array(pageItems.enumerated()), id: \.element.id) { localOffset, item in
-                        let globalIndex = index * config.itemsPerPage + localOffset
-                        itemDraggable(
-                            item: item,
-                            globalIndex: globalIndex,
-                            pageIndex: index,
-                            containerSize: containerSize,
-                            columnWidth: columnWidth,
-                            iconSize: iconSize,
-                            appHeight: appHeight,
-                            labelWidth: columnWidth * 0.9,
-                            isSelected: (!isFolderOpen && isKeyboardNavigationActive && selectedIndex == globalIndex)
-                        )
-                    }
-                }
-                .animation(LNAnimations.easeInOut, value: pendingDropIndex)
-                .transaction { transaction in
-                    if isUserSwiping || isSwipeSettling {
-                        transaction.animation = nil
-                    }
-                }
-                .frame(maxHeight: .infinity, alignment: .top)
-            }
-            .frame(width: containerSize.width, height: containerSize.height, alignment: .topLeading)
-            .offset(x: CGFloat(index - appStore.currentPage) * effectivePageWidth + interactivePageOffset)
-        }
     }
 
     @ViewBuilder
@@ -1384,25 +1426,28 @@ extension LaunchpadView {
         switch phase {
         case .began:
             // Invalidate any previous settle completion.
-            activeScrollSettleToken = UUID()
+            let settleToken = UUID()
+            activeScrollSettleToken = settleToken
             // If a previous swipe's settle-animation is still in flight, snap currentPage to the
             // nearest page before resetting io=0, so the visual doesn't jump to the wrong page.
-            if interactivePageOffset != 0 {
-                if interactivePageOffset <= -pageWidth / 2 {
+            let currentOffset = scrollCoordinator.renderedOffset
+            if currentOffset != 0 {
+                if currentOffset <= -pageWidth / 2 {
                     appStore.currentPage = min(appStore.currentPage + 1, pages.count - 1)
-                } else if interactivePageOffset >= pageWidth / 2 {
+                } else if currentOffset >= pageWidth / 2 {
                     appStore.currentPage = max(appStore.currentPage - 1, 0)
                 }
             }
             isUserSwiping = true
             isSwipeSettling = false
-            accumulatedScrollX = 0
-            interactivePageOffset = 0
+            scrollCoordinator.beginInteractiveGesture()
         case .changed:
-            isUserSwiping = true
-            accumulatedScrollX += delta
+            if !isUserSwiping {
+                isUserSwiping = true
+            }
+            scrollCoordinator.accumulatedScrollX += delta
             // 将累计滚动直接映射为页面容器偏移（与原版Launchpad类似）
-            var proposed = accumulatedScrollX
+            var proposed = scrollCoordinator.accumulatedScrollX
             let atFirstPage = appStore.currentPage <= 0
             let atLastPage = appStore.currentPage >= max(pages.count - 1, 0)
             // 橡皮筋函数：limit为单页宽度
@@ -1420,14 +1465,15 @@ extension LaunchpadView {
                 // 中间页：限制在一页范围内，避免跨越两页
                 proposed = max(-pageWidth, min(pageWidth, proposed))
             }
-            interactivePageOffset = proposed
+            scrollCoordinator.updateInteractiveOffset(proposed)
         case .ended, .cancelled:
             // Larger sensitivity → smaller threshold (consistent with original logic)
+            let settleToken = activeScrollSettleToken
             let threshold = pageWidth * (0.0225 / max(appStore.scrollSensitivity, 0.001))
             let targetPage: Int
-            if accumulatedScrollX <= -threshold {
+            if scrollCoordinator.accumulatedScrollX <= -threshold {
                 targetPage = min(appStore.currentPage + 1, pages.count - 1)
-            } else if accumulatedScrollX >= threshold {
+            } else if scrollCoordinator.accumulatedScrollX >= threshold {
                 targetPage = max(appStore.currentPage - 1, 0)
             } else {
                 targetPage = appStore.currentPage
@@ -1439,25 +1485,26 @@ extension LaunchpadView {
             // Before: h = -(oldPage * W) + IO
             // After:  h = -(newPage * W) + IO' = h  ⇒  IO' = IO + (newPage - oldPage) * W
             let oldPage = appStore.currentPage
-            let previousIO = interactivePageOffset
+            let previousIO = scrollCoordinator.renderedOffset
             let transitionalOffset = previousIO + CGFloat(targetPage - oldPage) * pageWidth
 
             // Reset swipe state and commit page instantly (no animation),
             // then animate the offset back to 0 to complete the visual transition.
-            accumulatedScrollX = 0
             isUserSwiping = false
             isSwipeSettling = true
+            scrollCoordinator.finishInteractiveGesture()
 
             var t = Transaction(animation: nil)
             t.disablesAnimations = true
             withTransaction(t) {
                 appStore.currentPage = targetPage
-                interactivePageOffset = transitionalOffset
+                scrollCoordinator.publishImmediately(transitionalOffset)
             }
 
             withAnimation(LNAnimations.smooth, completionCriteria: .removed) {
-                interactivePageOffset = 0
+                scrollCoordinator.publishImmediately(0)
             } completion: {
+                guard activeScrollSettleToken == settleToken else { return }
                 isSwipeSettling = false
             }
         default:
@@ -1495,11 +1542,17 @@ struct ScrollEventCatcher: NSViewRepresentable {
                 guard let self, event.window === self.window else {
                     return event
                 }
+                guard self.onScroll != nil else { return event }
+                let deltaX = event.scrollingDeltaX
+                let deltaY = event.scrollingDeltaY
+                guard deltaX != 0 || deltaY != 0 || event.phase != [] || event.momentumPhase != [] else {
+                    return event
+                }
                 let phase = event.phase != [] ? event.phase : event.momentumPhase
                 let isMomentum = event.momentumPhase != []
                 let isPreciseOrTrackpad = event.hasPreciseScrollingDeltas || event.phase != [] || event.momentumPhase != []
-                self.onScroll?(event.scrollingDeltaX,
-                               event.scrollingDeltaY,
+                self.onScroll?(deltaX,
+                               deltaY,
                                phase,
                                isMomentum,
                                isPreciseOrTrackpad)
@@ -1941,7 +1994,8 @@ extension LaunchpadView {
         isDragEdgeFlipping = false
         isUserSwiping = false
         isSwipeSettling = false
-        interactivePageOffset = 0
+        scrollCoordinator.finishInteractiveGesture()
+        scrollCoordinator.publishImmediately(0)
     }
 
     // 统一的拖拽更新逻辑（普通拖拽与接力拖拽共用）
