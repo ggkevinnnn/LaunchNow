@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 // Shared animations
 
 struct LaunchpadItemButton: View {
@@ -15,6 +16,7 @@ struct LaunchpadItemButton: View {
     
     @State private var isHovered = false
     @State private var lastTapTime = Date.distantPast
+    @State private var folderIconRefreshToken: UInt = 0
     private let doubleTapThreshold: TimeInterval = 0.3
     
     private var effectiveScale: CGFloat {
@@ -74,6 +76,7 @@ struct LaunchpadItemButton: View {
         }
 
     var body: some View {
+        _ = folderIconRefreshToken
         let renderedIcon = resolveIcon()
         return Button(action: handleTap) {
             VStack(spacing: 8) {
@@ -124,6 +127,12 @@ struct LaunchpadItemButton: View {
             if !shouldAllowHover, isHovered {
                 isHovered = false
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: FolderInfo.folderIconDidUpdate)) { notification in
+            guard case .folder(let folder) = item,
+                  let updatedFolderID = notification.object as? String,
+                  updatedFolderID == folder.id else { return }
+            folderIconRefreshToken &+= 1
         }
     }
     
