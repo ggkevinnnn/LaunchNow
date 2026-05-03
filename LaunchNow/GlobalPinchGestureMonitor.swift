@@ -56,6 +56,12 @@ private struct PinchSession {
     var fingerIDs = Set<Int32>()
     var initialRadius: CGFloat?
     var filteredRadius: CGFloat?
+    var smoothedRadius: CGFloat?
+    var lastTimestamp: Double = 0
+    var velocity: CGFloat = 0
+    var acceleration: CGFloat = 0
+    var radiusHistory: [CGFloat] = []
+    var timestampHistory: [Double] = []
 }
 
 enum GlobalPinchGestureDirection {
@@ -84,6 +90,15 @@ final class GlobalPinchGestureMonitor {
     private let minimumVelocityThreshold: CGFloat = 0.005
     /// 最大角度聚类范围（弧度），小于此值视为滑动手势
     private let swipeAngleThreshold: CGFloat = .pi / 3  // 60°
+    /// 双指数移动平均的平滑因子
+    private let demaAlpha: CGFloat = 0.3
+    private let demaBeta: CGFloat = 0.15
+    /// 速度变化阈值，低于此值视为抖动
+    private let velocityChangeThreshold: CGFloat = 0.002
+    /// 加速度变化阈值，高于此值视为抖动
+    private let accelerationThreshold: CGFloat = 0.01
+    /// 历史数据窗口大小
+    private let historyWindowSize: Int = 5
 
     private init() {}
 
@@ -193,20 +208,75 @@ final class GlobalPinchGestureMonitor {
         if session.initialRadius == nil {
             session.initialRadius = radius
             session.filteredRadius = radius
+            session.smoothedRadius = radius
+            session.lastTimestamp = Date().timeIntervalSince1970
+            session.radiusHistory = [radius]
+            session.timestampHistory = [session.lastTimestamp]
             return
         }
 
         guard
             let initialRadius = session.initialRadius,
             let previousFilteredRadius = session.filteredRadius,
+            let previousSmoothedRadius = session.smoothedRadius,
             initialRadius > 0
         else {
             return
         }
 
+        let now = Date().timeIntervalSince1970
+        let deltaTime = now - session.lastTimestamp
+        session.lastTimestamp = now
+
+        // 基础滤波
         let filteredRadius = previousFilteredRadius + (radius - previousFilteredRadius) * radiusFilterFactor
         session.filteredRadius = filteredRadius
-        let radiusRatio = filteredRadius / initialRadius
+
+        // 计算速度和加速度
+        let newVelocity = deltaTime > 0 ? (filteredRadius - previousSmoothedRadius) / deltaTime : 0
+        let newAcceleration = deltaTime > 0 ? (newVelocity - session.velocity) / deltaTime : 0
+
+        // 检测加速度突变（抖动）
+        if abs(newAcceleration) > accelerationThreshold {
+            // 加速度突变，可能是抖动，使用更保守的滤波
+            session.velocity = session.velocity * 0.5 + newVelocity * 0.5
+            session.acceleration = newAcceleration
+        } else {
+            session.velocity = newVelocity
+            session.acceleration = newAcceleration
+        }
+
+        // 检测速度变化是否过小（可能是抖动）
+        if abs(session.velocity) < velocityChangeThreshold && deltaTime > 0 {
+            // 速度变化过小，可能是抖动，保持之前的值
+            session.smoothedRadius = previousSmoothedRadius
+        } else {
+            // 使用双指数移动平均（DEMA）进一步平滑
+            let ema1 = previousSmoothedRadius + (filteredRadius - previousSmoothedRadius) * demaAlpha
+            let ema2 = previousSmoothedRadius + (ema1 - previousSmoothedRadius) * demaAlpha
+            let dema = 2 * ema1 - ema2
+            session.smoothedRadius = dema
+        }
+
+        // 更新历史数据
+        session.radiusHistory.append(filteredRadius)
+        session.timestampHistory.append(now)
+        if session.radiusHistory.count > historyWindowSize {
+            session.radiusHistory.removeFirst()
+            session.timestampHistory.removeFirst()
+        }
+
+        // 使用历史数据的加权平均作为最终半径
+        let finalRadius: CGFloat
+        if session.radiusHistory.count >= 3 {
+            let weights = Array(1...session.radiusHistory.count).map { CGFloat($0) }
+            let totalWeight = weights.reduce(0, +)
+            finalRadius = zip(session.radiusHistory, weights).map { $0 * $1 }.reduce(0, +) / totalWeight
+        } else {
+            finalRadius = session.smoothedRadius ?? filteredRadius
+        }
+
+        let radiusRatio = finalRadius / initialRadius
         if abs(radiusRatio - 1) < progressDeadZone {
             return
         }
@@ -218,19 +288,19 @@ final class GlobalPinchGestureMonitor {
             onProgress?(.pinchOut, pinchOutProgress)
         }
 
-        let now = Date()
-        guard now.timeIntervalSince(lastRecognitionAt) >= triggerCooldown else { return }
+        let recognitionNow = Date()
+        guard recognitionNow.timeIntervalSince(lastRecognitionAt) >= triggerCooldown else { return }
 
         if radiusRatio <= pinchInRatioThreshold {
-            lastRecognitionAt = now
-            resetTrackingBaseline(to: radius)
+            lastRecognitionAt = recognitionNow
+            resetTrackingBaseline(to: finalRadius)
             onPinchIn?()
             return
         }
 
         if radiusRatio >= pinchOutRatioThreshold {
-            lastRecognitionAt = now
-            resetTrackingBaseline(to: radius)
+            lastRecognitionAt = recognitionNow
+            resetTrackingBaseline(to: finalRadius)
             onPinchOut?()
         }
     }
@@ -265,6 +335,11 @@ final class GlobalPinchGestureMonitor {
     private func resetTrackingBaseline(to radius: CGFloat) {
         session.initialRadius = radius
         session.filteredRadius = radius
+        session.smoothedRadius = radius
+        session.velocity = 0
+        session.acceleration = 0
+        session.radiusHistory = [radius]
+        session.timestampHistory = [Date().timeIntervalSince1970]
     }
 
     private func requestAccessibilityTrustIfNeeded() {
