@@ -77,7 +77,7 @@ Add LaunchNow to your **Login Items** in System Settings → General → Login I
 
 ### 🙏 Acknowledgments
 
-Special thanks to all contributors and translators who helped make LaunchNow better:
+Special thanks to all contributors who helped make LaunchNow better:
 
 - Code improvement and optimization by @dizzycoder1112
 - Dutch translation by @OABsoftware
