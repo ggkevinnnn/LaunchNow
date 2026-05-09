@@ -503,10 +503,12 @@ final class AppStore: ObservableObject {
             var newApps: [AppInfo] = []
             var existingAppPaths = Set<String>()
             
-            // 首先保持现有应用的顺序
+            let uniqueAppByPath = Dictionary(uniqueKeysWithValues: uniqueApps.map { ($0.url.path, $0) })
+
+            // 首先保持现有应用的顺序，同时采用本次扫描到的新图标/名称
             for app in self.apps {
-                if uniqueApps.contains(where: { $0.url.path == app.url.path }) {
-                    newApps.append(app)
+                if let refreshedApp = uniqueAppByPath[app.url.path] {
+                    newApps.append(refreshedApp)
                     existingAppPaths.insert(app.url.path)
                 }
             }
@@ -543,11 +545,13 @@ final class AppStore: ObservableObject {
         var updatedApps: [AppInfo] = []
         var newAppsToAdd: [AppInfo] = []
         
-        // 第一步：保持现有应用的顺序，只更新仍然存在的应用
+        let scannedAppByPath = Dictionary(uniqueKeysWithValues: newApps.map { ($0.url.path, $0) })
+
+        // 第一步：保持现有应用的顺序，只更新仍然存在的应用信息与图标
         for app in self.apps {
-            if newApps.contains(where: { $0.url.path == app.url.path }) {
+            if let refreshedApp = scannedAppByPath[app.url.path] {
                 // 应用仍然存在，保持原有位置
-                updatedApps.append(app)
+                updatedApps.append(refreshedApp)
             } else {
                 // 应用已删除，从所有相关位置移除
                 self.removeDeletedApp(app)
@@ -566,6 +570,8 @@ final class AppStore: ObservableObject {
         
         // 更新应用列表
         self.apps = updatedApps
+        self.refreshAppSnapshotsInFolders()
+        FolderInfo.clearIconCache()
         
         // 第四步：智能重建项目列表，保持用户排序
         self.smartRebuildItemsWithOrderPreservation(currentItems: currentItems, newApps: newAppsToAdd)
@@ -630,7 +636,8 @@ final class AppStore: ObservableObject {
                 if self.apps.contains(where: { $0.url.path == app.url.path }) && !isAppHidden(path: app.url.path) {
                     if !appsInFolders.contains(app) {
                         // 应用仍然存在且不在文件夹中，保持原有位置
-                        newItems.append(.app(app))
+                        let refreshedApp = self.apps.first(where: { $0.url.path == app.url.path }) ?? app
+                        newItems.append(.app(refreshedApp))
                     } else {
                         // 应用现在在文件夹中，保持空槽位
                         newItems.append(.empty(UUID().uuidString))
@@ -1357,6 +1364,41 @@ final class AppStore: ObservableObject {
 
         if didChange {
             refreshFilteredItemsImmediately()
+        }
+    }
+
+    private func refreshAppSnapshotsInFolders() {
+        let appByPath = Dictionary(uniqueKeysWithValues: apps.map { ($0.url.path, $0) })
+        var didChange = false
+
+        for folderIndex in folders.indices {
+            var folder = folders[folderIndex]
+            var refreshedApps: [AppInfo] = []
+            refreshedApps.reserveCapacity(folder.apps.count)
+
+            for app in folder.apps {
+                if let refreshedApp = appByPath[app.url.path] {
+                    refreshedApps.append(refreshedApp)
+                } else {
+                    refreshedApps.append(app)
+                }
+            }
+
+            let unchanged = zip(folder.apps, refreshedApps).allSatisfy { currentApp, refreshedApp in
+                currentApp.url.path == refreshedApp.url.path &&
+                currentApp.name == refreshedApp.name &&
+                currentApp.icon === refreshedApp.icon
+            }
+
+            if !unchanged {
+                folder.apps = refreshedApps
+                folders[folderIndex] = folder
+                didChange = true
+            }
+        }
+
+        if didChange {
+            syncFolderSnapshotsIntoItems()
         }
     }
 
@@ -2384,6 +2426,7 @@ final class AppStore: ObservableObject {
     func refresh() {
         // 清除缓存，确保图标与搜索索引重新生成
         cacheManager.clearAllCaches()
+        FolderInfo.clearIconCache()
 
         // 重置界面与状态，使之接近"首次启动"
         openFolder = nil
@@ -2395,12 +2438,6 @@ final class AppStore: ObservableObject {
 
         // 执行与首次启动相同的扫描路径（保持现有顺序，新增在末尾）
         scanApplicationsWithOrderPreservation()
-
-        // 扫描完成后生成缓存
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self else { return }
-            self.generateCacheAfterScan()
-        }
 
         // 强制界面刷新
         triggerFolderUpdate()

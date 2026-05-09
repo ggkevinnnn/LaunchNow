@@ -13,6 +13,10 @@ struct FolderInfo: Identifiable, Equatable {
     // Notification when a folder icon finishes rendering and updates the cache
     static let folderIconDidUpdate = Notification.Name("FolderIconDidUpdate")
 
+    static func clearIconCache() {
+        iconCache.removeAllObjects()
+    }
+
     // Fast placeholder to avoid blocking UI while real icon is rendered
     private static func placeholderFolderIcon(of side: CGFloat) -> NSImage {
         let normalizedSide = max(16, side)
@@ -289,4 +293,3 @@ final class PageEntryData {
         self.updatedAt = updatedAt
     }
 }
-

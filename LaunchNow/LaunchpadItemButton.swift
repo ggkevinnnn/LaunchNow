@@ -159,12 +159,19 @@ extension LaunchpadItemButton: Equatable {
     private static func isVisuallySameItem(_ lhs: LaunchpadItem, _ rhs: LaunchpadItem) -> Bool {
         switch (lhs, rhs) {
         case let (.app(lApp), .app(rApp)):
-            return lApp.id == rApp.id
+            return lApp.id == rApp.id &&
+                lApp.name == rApp.name &&
+                lApp.icon === rApp.icon
         case let (.folder(lFolder), .folder(rFolder)):
             // Folder icon and title depend on folder name + contained apps.
             return lFolder.id == rFolder.id &&
                 lFolder.name == rFolder.name &&
-                lFolder.apps.map(\.id) == rFolder.apps.map(\.id)
+                lFolder.apps.count == rFolder.apps.count &&
+                zip(lFolder.apps, rFolder.apps).allSatisfy { lApp, rApp in
+                    lApp.id == rApp.id &&
+                    lApp.name == rApp.name &&
+                    lApp.icon === rApp.icon
+                }
         case let (.empty(lToken), .empty(rToken)):
             return lToken == rToken
         default:
