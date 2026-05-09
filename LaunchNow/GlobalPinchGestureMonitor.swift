@@ -57,6 +57,9 @@ private struct PinchSession {
     var initialRadius: CGFloat?
     var filteredRadius: CGFloat?
     var smoothedRadius: CGFloat?
+    var activeDirection: GlobalPinchGestureDirection?
+    var currentProgress: CGFloat = 0
+    var recognizedDirection: GlobalPinchGestureDirection?
     var lastTimestamp: Double = 0
     var velocity: CGFloat = 0
     var acceleration: CGFloat = 0
@@ -79,7 +82,8 @@ final class GlobalPinchGestureMonitor {
     private var onProgress: ((GlobalPinchGestureDirection, CGFloat) -> Void)?
     private var onGestureEnded: (() -> Void)?
     private var lastRecognitionAt = Date.distantPast
-    private var session = PinchSession()
+    private var sessionsByDeviceID: [UInt: PinchSession] = [:]
+    private var pendingResetWorkItemsByDeviceID: [UInt: DispatchWorkItem] = [:]
 
     private let minimumTouchCount = 4
     private let pinchInRatioThreshold: CGFloat = 0.9
@@ -87,6 +91,9 @@ final class GlobalPinchGestureMonitor {
     private let triggerCooldown: TimeInterval = 0.2
     private let radiusFilterFactor: CGFloat = 0.28
     private let progressDeadZone: CGFloat = 0.015
+    private let directionStartDeadZone: CGFloat = 0.035
+    private let directionSwitchDeadZone: CGFloat = 0.08
+    private let gestureEndGracePeriod: TimeInterval = 0.12
     private let minimumVelocityThreshold: CGFloat = 0.005
     /// 最大角度聚类范围（弧度），小于此值视为滑动手势
     private let swipeAngleThreshold: CGFloat = .pi / 3  // 60°
@@ -129,7 +136,11 @@ final class GlobalPinchGestureMonitor {
     }
 
     func stop() {
-        session = PinchSession()
+        for workItem in pendingResetWorkItemsByDeviceID.values {
+            workItem.cancel()
+        }
+        pendingResetWorkItemsByDeviceID.removeAll()
+        sessionsByDeviceID.removeAll()
         onPinchIn = nil
         onPinchOut = nil
         onProgress = nil
@@ -138,10 +149,11 @@ final class GlobalPinchGestureMonitor {
         multitouch = nil
     }
 
-    fileprivate nonisolated static let callback: MTContactCallback = { _, touchesRawPointer, touchCount, _, _ in
+    fileprivate nonisolated static let callback: MTContactCallback = { device, touchesRawPointer, touchCount, _, _ in
+        let deviceID = device.map { UInt(bitPattern: $0) } ?? 0
         guard let touchesRawPointer, touchCount > 0 else {
             Task { @MainActor in
-                GlobalPinchGestureMonitor.shared.resetSession()
+                GlobalPinchGestureMonitor.shared.scheduleSessionReset(for: deviceID)
             }
             return 0
         }
@@ -150,15 +162,13 @@ final class GlobalPinchGestureMonitor {
         let buffer = UnsafeBufferPointer(start: touchesPointer, count: Int(touchCount))
         let makeTouch = mtTouchStateMakeTouch
         let touching = mtTouchStateTouching
-        let breakTouch = mtTouchStateBreakTouch
         let activeTouches = buffer.compactMap { touch -> FrameTouch? in
             guard touch.state == makeTouch ||
-                    touch.state == touching ||
-                    touch.state == breakTouch else {
+                    touch.state == touching else {
                 return nil
             }
             return FrameTouch(
-                id: touch.fingerID,
+                id: touch.pathIndex >= 0 ? touch.pathIndex : touch.fingerID,
                 x: CGFloat(touch.normalizedVector.position.x),
                 y: CGFloat(touch.normalizedVector.position.y),
                 vx: CGFloat(touch.normalizedVector.velocity.x),
@@ -167,33 +177,44 @@ final class GlobalPinchGestureMonitor {
         }
 
         Task { @MainActor in
-            GlobalPinchGestureMonitor.shared.process(activeTouches: activeTouches)
+            GlobalPinchGestureMonitor.shared.process(activeTouches: activeTouches, deviceID: deviceID)
         }
         return 0
     }
 
-    private func process(activeTouches: [FrameTouch]) {
+    private func process(activeTouches: [FrameTouch], deviceID: UInt) {
+        var session = sessionsByDeviceID[deviceID] ?? PinchSession()
+
         guard activeTouches.count >= minimumTouchCount else {
-            resetSession()
+            scheduleSessionReset(for: deviceID)
             return
         }
 
         let touches = Array(activeTouches.sorted { $0.id < $1.id }.prefix(minimumTouchCount))
         let ids = Set(touches.map(\.id))
         if ids.count < minimumTouchCount {
-            resetSession()
+            scheduleSessionReset(for: deviceID)
             return
         }
 
-        if session.fingerIDs != ids {
+        cancelScheduledReset(for: deviceID)
+
+        if session.fingerIDs.isEmpty {
             session = PinchSession()
+            session.fingerIDs = ids
+            sessionsByDeviceID[deviceID] = session
+        } else if session.fingerIDs != ids {
             session.fingerIDs = ids
         }
 
         // 速度方向聚类检测：若 3+ 手指有明显运动且方向一致，判定为滑动，不处理
         let movingCount = touches.filter { hypot($0.vx, $0.vy) > minimumVelocityThreshold }.count
         if movingCount >= 3 && isSwipeGesture(touches: touches) {
-            resetSession()
+            if session.initialRadius == nil {
+                resetSession(for: deviceID)
+            } else {
+                sessionsByDeviceID[deviceID] = session
+            }
             return
         }
 
@@ -212,6 +233,7 @@ final class GlobalPinchGestureMonitor {
             session.lastTimestamp = Date().timeIntervalSince1970
             session.radiusHistory = [radius]
             session.timestampHistory = [session.lastTimestamp]
+            sessionsByDeviceID[deviceID] = session
             return
         }
 
@@ -277,32 +299,81 @@ final class GlobalPinchGestureMonitor {
         }
 
         let radiusRatio = finalRadius / initialRadius
-        if abs(radiusRatio - 1) < progressDeadZone {
+        let ratioDelta = radiusRatio - 1
+        let movementMagnitude = abs(ratioDelta)
+        let candidateDirection: GlobalPinchGestureDirection = ratioDelta < 0 ? .pinchIn : .pinchOut
+
+        if session.activeDirection == nil {
+            guard movementMagnitude >= directionStartDeadZone else {
+                sessionsByDeviceID[deviceID] = session
+                return
+            }
+            session.activeDirection = candidateDirection
+            session.currentProgress = 0
+        } else if session.activeDirection != candidateDirection {
+            guard movementMagnitude >= directionSwitchDeadZone else {
+                if let direction = session.activeDirection, session.currentProgress > 0 {
+                    onProgress?(direction, session.currentProgress)
+                }
+                sessionsByDeviceID[deviceID] = session
+                return
+            }
+            session.activeDirection = candidateDirection
+            session.currentProgress = 0
+            session.recognizedDirection = nil
+        }
+
+        guard let activeDirection = session.activeDirection else {
+            sessionsByDeviceID[deviceID] = session
             return
         }
-        if radiusRatio < 1 {
-            let pinchInProgress = max(0, min(1, (1 - radiusRatio) / (1 - pinchInRatioThreshold)))
-            onProgress?(.pinchIn, pinchInProgress)
-        } else if radiusRatio > 1 {
-            let pinchOutProgress = max(0, min(1, (radiusRatio - 1) / (pinchOutRatioThreshold - 1)))
-            onProgress?(.pinchOut, pinchOutProgress)
+
+        let rawProgress: CGFloat
+        switch activeDirection {
+        case .pinchIn:
+            rawProgress = (1 - radiusRatio) / (1 - pinchInRatioThreshold)
+        case .pinchOut:
+            rawProgress = (radiusRatio - 1) / (pinchOutRatioThreshold - 1)
         }
 
-        let recognitionNow = Date()
-        guard recognitionNow.timeIntervalSince(lastRecognitionAt) >= triggerCooldown else { return }
+        let clampedProgress = max(0, min(1, rawProgress))
+        if clampedProgress < progressDeadZone, session.currentProgress == 0 {
+            sessionsByDeviceID[deviceID] = session
+            return
+        }
 
-        if radiusRatio <= pinchInRatioThreshold {
+        session.currentProgress = max(session.currentProgress, clampedProgress)
+        onProgress?(activeDirection, session.currentProgress)
+
+        let recognitionNow = Date()
+        guard recognitionNow.timeIntervalSince(lastRecognitionAt) >= triggerCooldown else {
+            sessionsByDeviceID[deviceID] = session
+            return
+        }
+
+        if activeDirection == .pinchIn,
+           session.currentProgress >= 1,
+           session.recognizedDirection != .pinchIn {
             lastRecognitionAt = recognitionNow
-            resetTrackingBaseline(to: finalRadius)
+            session.recognizedDirection = .pinchIn
+            session.currentProgress = 1
+            sessionsByDeviceID[deviceID] = session
             onPinchIn?()
             return
         }
 
-        if radiusRatio >= pinchOutRatioThreshold {
+        if activeDirection == .pinchOut,
+           session.currentProgress >= 1,
+           session.recognizedDirection != .pinchOut {
             lastRecognitionAt = recognitionNow
-            resetTrackingBaseline(to: finalRadius)
+            session.recognizedDirection = .pinchOut
+            session.currentProgress = 1
+            sessionsByDeviceID[deviceID] = session
             onPinchOut?()
+            return
         }
+
+        sessionsByDeviceID[deviceID] = session
     }
 
     /// 判断手指速度方向是否高度一致（聚类于小角度范围），若是则判定为滑动手势。
@@ -325,21 +396,35 @@ final class GlobalPinchGestureMonitor {
         return clusterRange < swipeAngleThreshold
     }
 
-    private func resetSession() {
-        if session.initialRadius != nil {
+    private func resetSession(for deviceID: UInt) {
+        cancelScheduledReset(for: deviceID)
+        guard let session = sessionsByDeviceID[deviceID] else { return }
+        let hasOtherActiveSession = sessionsByDeviceID.contains { otherDeviceID, otherSession in
+            otherDeviceID != deviceID && otherSession.initialRadius != nil
+        }
+        if session.initialRadius != nil && !hasOtherActiveSession {
             onGestureEnded?()
         }
-        session = PinchSession()
+        sessionsByDeviceID.removeValue(forKey: deviceID)
     }
 
-    private func resetTrackingBaseline(to radius: CGFloat) {
-        session.initialRadius = radius
-        session.filteredRadius = radius
-        session.smoothedRadius = radius
-        session.velocity = 0
-        session.acceleration = 0
-        session.radiusHistory = [radius]
-        session.timestampHistory = [Date().timeIntervalSince1970]
+    private func scheduleSessionReset(for deviceID: UInt) {
+        guard sessionsByDeviceID[deviceID]?.initialRadius != nil else {
+            resetSession(for: deviceID)
+            return
+        }
+
+        pendingResetWorkItemsByDeviceID[deviceID]?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.resetSession(for: deviceID)
+        }
+        pendingResetWorkItemsByDeviceID[deviceID] = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + gestureEndGracePeriod, execute: workItem)
+    }
+
+    private func cancelScheduledReset(for deviceID: UInt) {
+        pendingResetWorkItemsByDeviceID[deviceID]?.cancel()
+        pendingResetWorkItemsByDeviceID.removeValue(forKey: deviceID)
     }
 
     private func requestAccessibilityTrustIfNeeded() {

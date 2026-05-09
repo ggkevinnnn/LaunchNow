@@ -53,6 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var gestureContinuityProgress: CGFloat?
     private var gesturePreviewActivated = false
     private var gestureSearchFocusAssigned = false
+    private var gesturePreviewGeneration: UInt = 0
     private var isAnimatingWindowTransition = false
     private let showStartScale: CGFloat = 1.4
     private let previewActivationProgress: CGFloat = 0.08
@@ -284,6 +285,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func applyGestureProgress(direction: GlobalPinchGestureDirection, progress: CGFloat) {
         guard let window else { return }
+        invalidateGesturePreviewAnimations()
         let clamped = max(0, min(1, progress))
         if gesturePreviewMode == nil {
             gesturePreviewMode = window.isVisible ? .hiding : .showing
@@ -338,6 +340,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         defer { resetGesturePreviewState() }
         guard let mode = gesturePreviewMode, gesturePreviewTargetRect != nil else { return }
         guard gesturePreviewActivated else { return }
+        let generation = gesturePreviewGeneration
 
         switch mode {
         case .showing where shouldCompleteCurrentGesture():
@@ -347,12 +350,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.orderFrontRegardless()
             NotificationCenter.default.post(name: .launchpadFocusSearchField, object: nil)
             animatePreviewVisual(toScale: 1, alpha: 1) {
+                guard self.gesturePreviewGeneration == generation else { return }
                 self.finalizeShownState()
             }
         case .showing:
-            rollbackToHidden(window: window)
+            rollbackToHidden(window: window, generation: generation)
         case .hiding where shouldCompleteCurrentGesture():
             animatePreviewVisual(toScale: previewScale(for: 0), alpha: previewAlpha(for: 0)) {
+                guard self.gesturePreviewGeneration == generation else { return }
                 self.finalizeHiddenState()
             }
         case .hiding:
@@ -381,6 +386,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         gestureContinuityProgress = nil
         gesturePreviewActivated = false
         gestureSearchFocusAssigned = false
+    }
+
+    private func invalidateGesturePreviewAnimations() {
+        gesturePreviewGeneration &+= 1
+        guard let contentLayer = window?.contentView?.layer else { return }
+        contentLayer.removeAnimation(forKey: "launchnow.opacity")
+        contentLayer.removeAnimation(forKey: "launchnow.transform")
     }
 
     private func animatePreviewVisual(toScale scale: CGFloat, alpha: CGFloat, completion: (() -> Void)?) {
@@ -419,9 +431,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         CATransaction.commit()
     }
 
-    private func rollbackToHidden(window: NSWindow) {
+    private func rollbackToHidden(window: NSWindow, generation: UInt) {
         guard gesturePreviewMadeVisible else { return }
         animatePreviewVisual(toScale: previewScale(for: 0), alpha: previewAlpha(for: 0)) {
+            guard self.gesturePreviewGeneration == generation else { return }
             window.orderOut(nil)
             self.applyPreviewVisual(scale: 1, alpha: 1)
             window.alphaValue = 1
