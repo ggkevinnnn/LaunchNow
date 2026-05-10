@@ -86,7 +86,7 @@ struct LaunchpadItemButton: View {
                             .foregroundStyle(Color.clear)
                             .frame(width: iconSize * 0.8, height: iconSize * 0.8)
                             .glassEffect(.clear, in: RoundedRectangle(cornerRadius: iconSize * 0.2))
-                            .shadow(radius: 3)
+                            .shadow(radius: 5)
                             .overlay(
                                 RoundedRectangle(cornerRadius: iconSize * 0.2)
                                     .stroke(Color.foundary.opacity(0.5), lineWidth: 2)

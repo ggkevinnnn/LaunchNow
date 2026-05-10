@@ -253,7 +253,7 @@ struct LaunchpadView: View {
                         Image(systemName: "ellipsis.circle")
 
                             .font(.title)
-                            .foregroundStyle(.placeholder.opacity(0.5))
+                            .foregroundStyle(.placeholder.opacity(0.6))
                     }
                     .buttonStyle(.plain)
                     .sheet(isPresented: $appStore.isSetting) {
@@ -469,7 +469,8 @@ struct LaunchpadView: View {
         .padding()
         .background {
             if appStore.isGlasseffectEnabled {
-                Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+                Color.clear.background(.ultraThinMaterial.opacity(0.85), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+                Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
             } else {
                 Color.clear.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
             }
@@ -2281,7 +2282,7 @@ struct DragPreviewItem: View {
                         .foregroundStyle(Color.clear)
                         .frame(width: iconSize * 0.8, height: iconSize * 0.8)
                         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: iconSize * 0.2))
-                        .shadow(radius: 3)
+                        .shadow(radius: 5)
                         .overlay(
                             RoundedRectangle(cornerRadius: iconSize * 0.2)
                                 .stroke(Color.foundary.opacity(0.5), lineWidth: 2)

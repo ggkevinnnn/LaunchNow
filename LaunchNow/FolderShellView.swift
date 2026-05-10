@@ -20,10 +20,5 @@ struct FolderShellView: View {
             Spacer()
         }
         .padding()
-        .background(
-            Group {
-                Color.clear.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 30))
-            }
-        )
     }
 }
