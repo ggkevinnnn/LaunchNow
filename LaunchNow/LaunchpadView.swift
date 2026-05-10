@@ -469,7 +469,7 @@ struct LaunchpadView: View {
         .padding()
         .background {
             if appStore.isGlasseffectEnabled {
-                Color.clear.background(.ultraThinMaterial.opacity(0.85), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+                Color.clear.background(.ultraThinMaterial.opacity(0.7), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
                 Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
             } else {
                 Color.clear.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))

@@ -104,7 +104,7 @@ struct FolderView: View {
         .padding()
         .background(
             Group {
-                Color.clear.background(.ultraThinMaterial.opacity(0.85), in: RoundedRectangle(cornerRadius: 30))
+                Color.clear.background(.ultraThinMaterial.opacity(0.75), in: RoundedRectangle(cornerRadius: 30))
                 Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius:30))
             }
         )
