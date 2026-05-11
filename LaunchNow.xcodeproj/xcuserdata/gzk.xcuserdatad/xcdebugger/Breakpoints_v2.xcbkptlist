@@ -30,8 +30,8 @@
             filePath = "LaunchNow/FolderView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "284"
-            endingLineNumber = "284"
+            startingLineNumber = "286"
+            endingLineNumber = "286"
             landmarkName = "appGridSection(geometry:)"
             landmarkType = "7">
          </BreakpointContent>

@@ -102,12 +102,14 @@ struct FolderView: View {
             }
         }
         .padding()
-        .background(
-            Group {
-                Color.clear.background(.ultraThinMaterial.opacity(0.75), in: RoundedRectangle(cornerRadius: 30))
-                Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius:30))
+        .background {
+            if appStore.isGlasseffectEnabled {
+                Color.clear.background(.ultraThinMaterial.opacity(0.78), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+                Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+            } else {
+                Color.clear.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
             }
-        )
+        }
         .onTapGesture {
             // 当点击文件夹视图的非编辑区域时，如果正在编辑名称，则退出编辑模式
             if isEditingName {
