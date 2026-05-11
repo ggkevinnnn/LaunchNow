@@ -104,10 +104,10 @@ struct FolderView: View {
         .padding()
         .background {
             if appStore.isGlasseffectEnabled {
-                Color.clear.background(.ultraThinMaterial.opacity(0.78), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
-                Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+                Color.clear.background(.ultraThinMaterial.opacity(0.72), in: RoundedRectangle(cornerRadius: 30)).shadow(radius: 15)
+                Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius: 30))
             } else {
-                Color.clear.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+                Color.clear.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 30)).shadow(radius: 15)
             }
         }
         .onTapGesture {
