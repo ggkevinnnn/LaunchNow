@@ -239,18 +239,18 @@ struct FolderView: View {
                         }
                     }
                 }
+                .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
+                .background(GeometryReader { proxy in
+                    let rawOriginY = proxy.frame(in: .named("folderGrid")).origin.y
+                    let scrollOffset = gridPadding - rawOriginY
+                    return Color.clear.preference(
+                        key: FolderScrollOffsetPreferenceKey.self,
+                        value: scrollOffset
+                    )
+                })
                 .animation(LNAnimations.easeInOut, value: pendingDropIndex)
                 .animation(LNAnimations.easeInOut, value: folder.apps)
                 .animation(LNAnimations.easeInOut, value: selectedIndex)
-                .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: FolderScrollOffsetPreferenceKey.self,
-                            value: -proxy.frame(in: .named("folderGrid")).origin.y
-                        )
-                    }
-                )
             }
             .scrollIndicators(.hidden)
             .simultaneousGesture(
@@ -551,18 +551,15 @@ extension FolderView {
                             containerSize: CGSize,
                             columnWidth: CGFloat,
                             appHeight: CGFloat) -> CGPoint {
-        return GeometryUtils.cellOrigin(for: index,
-                                      containerSize: containerSize,
-                                      pageIndex: 0,
-                                      columnWidth: columnWidth,
-                                      appHeight: appHeight,
-                                      columns: max(columnsCount, 1),
-                                      columnSpacing: spacing,
-                                      rowSpacing: spacing,
-                                      pageSpacing: 0,
-                                      currentPage: 0,
-                                      gridPadding: gridPadding,
-                                      scrollOffsetY: scrollOffsetY)
+        let row = index / columnsCount
+        let col = index % columnsCount
+        
+        // 计算在 LazyVGrid 内容坐标系中的位置
+        let x = gridPadding + CGFloat(col) * (columnWidth + spacing)
+        let y = gridPadding + CGFloat(row) * (appHeight + spacing)
+        
+        // 转换为 folderGrid 坐标系（减去滚动偏移）
+        return CGPoint(x: x, y: y - scrollOffsetY)
     }
 
     private func cellCenter(for index: Int,
@@ -577,24 +574,25 @@ extension FolderView {
                          containerSize: CGSize,
                          columnWidth: CGFloat,
                          appHeight: CGFloat) -> Int? {
-        guard let offsetInPage = GeometryUtils.indexAt(point: point,
-                                                      containerSize: containerSize,
-                                                      pageIndex: 0,
-                                                      columnWidth: columnWidth,
-                                                      appHeight: appHeight,
-                                                      columns: max(columnsCount, 1),
-                                                      columnSpacing: spacing,
-                                                      rowSpacing: spacing,
-                                                      pageSpacing: 0,
-                                                      currentPage: 0,
-                                                      itemsPerPage: visualAppSlots.count,
-                                                      gridPadding: gridPadding,
-                                                      scrollOffsetY: scrollOffsetY) else { return nil }
+        // point 是在 folderGrid 坐标系中的位置
+        // 需要转换为 LazyVGrid 内容坐标
+        // LazyVGrid 内容起点在 folderGrid 中的位置是 (gridPadding, gridPadding - scrollOffsetY)
+        // 所以内容坐标 = point - (gridPadding, gridPadding) + scrollOffsetY
+        let contentX = point.x - gridPadding
+        let contentY = point.y - gridPadding + scrollOffsetY
+        
+        guard contentX >= 0, contentY >= 0 else { return nil }
+        
+        let col = Int((contentX + spacing / 2) / (columnWidth + spacing))
+        let row = Int((contentY + spacing / 2) / (appHeight + spacing))
+        
+        guard col >= 0 && col < columnsCount && row >= 0 else { return nil }
+        
+        let index = row * columnsCount + col
         
         let count = visualAppSlots.count
-        // 允许返回 count 作为"末尾插槽"，实现拖到最后一个之后的让位
         if count == 0 { return 0 }
-        return min(max(offsetInPage, 0), count)
+        return min(max(index, 0), count)
     }
 }
 
