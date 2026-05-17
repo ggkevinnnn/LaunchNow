@@ -544,6 +544,7 @@ struct LaunchpadView: View {
                                     appStore: appStore,
                                     folder: folderBinding,
                                     preferredIconSize: currentIconSize,
+                                    deferGridUntilOpened: false, // 图标已加载完成，立即显示网格
                                     onClose: {
                                         let closingFolder = appStore.openFolder
                                         withAnimation(folderAnimation) {
@@ -696,15 +697,13 @@ struct LaunchpadView: View {
         }
 
         if AppCacheManager.shared.areIconsCached(for: appPaths) {
+            // 图标已缓存，立即显示
             DispatchQueue.main.async(execute: reveal)
             return
         }
 
+        // 图标未缓存，在后台线程预加载，完成后在主线程显示
         AppCacheManager.shared.preloadIcons(for: appPaths) {
-            reveal()
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             reveal()
         }
     }

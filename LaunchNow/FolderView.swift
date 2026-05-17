@@ -20,6 +20,8 @@ struct FolderView: View {
     @Binding var folder: FolderInfo
     // 若提供，将强制使用与外层一致的图标尺寸
     var preferredIconSize: CGFloat? = nil
+    // 控制是否延迟显示网格内容（等待图标加载完成）
+    var deferGridUntilOpened: Bool = true
     @State private var folderName: String = ""
     @State private var isEditingName = false
     @FocusState private var isTextFieldFocused: Bool
@@ -40,7 +42,6 @@ struct FolderView: View {
     @State private var outOfBoundsBeganAt: Date? = nil
     @State private var hasHandedOffDrag: Bool = false
     @State private var lastDroppedAppID: String? = nil
-    @State private var deferGridUntilOpened: Bool = true
     @State private var isScrolling: Bool = false
     @State private var lastScrollMark: Date = .distantPast
     private let outOfBoundsDwell: TimeInterval = 0.0
@@ -92,6 +93,7 @@ struct FolderView: View {
             GeometryReader { geo in
                 if deferGridUntilOpened {
                     // 轻量占位，避免在打开瞬间进行大量布局与图片绘制
+                    // 文件夹窗口已显示，但等待图标加载完成
                     ZStack {
                         Color.clear
                     }
@@ -128,16 +130,8 @@ struct FolderView: View {
             } else {
                 isKeyboardNavigationActive = false
             }
-            // 外层已经负责控制内容出现时机，这里只保留一个最小延迟避免首帧同步布局抖动
-            var tx = Transaction(); tx.disablesAnimations = true
-            withTransaction(tx) { deferGridUntilOpened = true }
-            DispatchQueue.main.async {
-                var revealTx = Transaction()
-                revealTx.disablesAnimations = true
-                withTransaction(revealTx) {
-                    deferGridUntilOpened = false
-                }
-            }
+            // deferGridUntilOpened 由外层 LaunchpadView 的 isFolderContentReady 控制
+            // 不再在 onAppear 中自动设置为 false，避免图标未加载完成就显示网格
         }
         .onChange(of: isTextFieldFocused) { focused in
             if !focused && isEditingName {
