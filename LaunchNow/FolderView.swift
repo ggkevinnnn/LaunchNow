@@ -45,7 +45,6 @@ struct FolderView: View {
     @State private var isScrolling: Bool = false
     @State private var lastScrollMark: Date = .distantPast
     private let outOfBoundsDwell: TimeInterval = 0.0
-    private let unifiedAnim = LNAnimations.easeInOut
     
     let onClose: () -> Void
     let onLaunchApp: (AppInfo) -> Void
@@ -217,18 +216,21 @@ struct FolderView: View {
         ZStack(alignment: .topLeading) {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: desiredColumns), spacing: spacing) {
-                    ForEach(slots.indices, id: \.self) { idx in
-                        let slot = slots[idx]
+                    ForEach(Array(slots.enumerated()), id: \.element.id) { index, slot in
                         if case .app(let app) = slot {
+                            // 计算实际的应用索引（排除占位符）
+                            let actualAppIndex = slots.prefix(index).filter { sl in
+                                if case .app = sl { return true }
+                                return false
+                            }.count
                             appDraggable(
                                 app: app,
-                                appIndex: idx,
                                 containerSize: geo.size,
                                 columnWidth: columnWidth,
                                 appHeight: appHeight,
                                 iconSize: iconSize,
                                 labelWidth: labelWidth,
-                                isSelected: isKeyboardNavigationActive && selectedIndex == idx
+                                isSelected: isKeyboardNavigationActive && actualAppIndex == selectedIndex
                             )
                         } else {
                             Rectangle()
@@ -239,6 +241,7 @@ struct FolderView: View {
                 }
                 .animation(LNAnimations.easeInOut, value: pendingDropIndex)
                 .animation(LNAnimations.easeInOut, value: folder.apps)
+                .animation(LNAnimations.easeInOut, value: selectedIndex)
                 .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
                 .background(
                     GeometryReader { proxy in
@@ -281,6 +284,8 @@ struct FolderView: View {
                     .opacity(dragPreviewOpacity)
                     .zIndex(100)
                     .allowsHitTesting(false)
+                    .animation(LNAnimations.easeInOut, value: dragPreviewScale)
+                    .animation(LNAnimations.easeInOut, value: dragPreviewOpacity)
                     .if(!isScrolling) { view in
                         view.drawingGroup(opaque: false, colorMode: .extendedLinear)
                     }
@@ -348,7 +353,6 @@ extension FolderView {
 
     @ViewBuilder
     private func appDraggable(app: AppInfo,
-                              appIndex: Int,
                               containerSize: CGSize,
                               columnWidth: CGFloat,
                               appHeight: CGFloat,
@@ -371,13 +375,20 @@ extension FolderView {
                 }
             }
         )
+        .equatable()
         .frame(height: appHeight)
+        // 保持稳定的视图身份，避免在文件夹更新后中断拖拽手势
+        .id(app.id)
 
         withMatchedGeometry(base, id: app.id)
-            .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : ((lastDroppedAppID == app.id) ? 0 : 1))
+            // 淡入新放置的图标
+            .opacity((lastDroppedAppID == app.id) ? 0 : 1)
             .animation(LNAnimations.easeInOut, value: lastDroppedAppID)
+            // 拖拽时隐藏原始图标
+            .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : 1)
             .animation(LNAnimations.easeInOut, value: isSettlingDrop)
-            .animation(isSettlingDrop ? nil : LNAnimations.easeInOut, value: pendingDropIndex)
+            // 占位符插入时的布局动画
+            .animation(LNAnimations.easeInOut, value: pendingDropIndex)
             .allowsHitTesting(!isDraggingThisTile)
             .contentTransition(.opacity)
             .animation(LNAnimations.smooth, value: isSelected)
@@ -393,6 +404,7 @@ extension FolderView {
                                 draggingApp = app
                                 dragSourceApps = folder.apps
                                 dragPreviewOpacity = 1.0
+                                dragPreviewScale = 1.2 // 立即放大，与主网格一致
                                 isSettlingDrop = false
                             }
                             isKeyboardNavigationActive = false // 禁用键盘导航
@@ -478,7 +490,7 @@ extension FolderView {
                                                           containerSize: containerSize,
                                                           columnWidth: columnWidth,
                                                           appHeight: appHeight)
-                            withAnimation(unifiedAnim) {
+                            withAnimation(LNAnimations.easeInOut) {
                                 dragPreviewPosition = targetCenter
                                 dragPreviewScale = 1.0
                                 dragPreviewOpacity = 0.0
@@ -493,7 +505,7 @@ extension FolderView {
                                 apps.insert(dragging, at: clamped)
                                 
                                 // 提交回绑定，驱动真实布局变化（与外部一致）
-                                withAnimation(unifiedAnim) {
+                                withAnimation(LNAnimations.easeInOut) {
                                     appStore.reorderAppsInsideFolder(apps, in: folder)
                                 }
                                 
@@ -508,6 +520,13 @@ extension FolderView {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                     appStore.compactItemsWithinPages()
                                 }
+                            }
+                        } else {
+                            // 没有有效的放置位置，回退到原始位置
+                            // 这确保拖拽结束时总有平滑的动画
+                            withAnimation(LNAnimations.easeInOut) {
+                                dragPreviewScale = 1.0
+                                dragPreviewOpacity = 0.0
                             }
                         }
                     }
