@@ -1254,7 +1254,6 @@ extension LaunchpadView {
                     // Hide tile while it is being dragged
                     .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : 1)
                     .animation(LNAnimations.easeInOut, value: isSettlingDrop)
-                    .animation(LNAnimations.easeInOut, value: pendingDropIndex)
                     .allowsHitTesting(!isDraggingThisTile)
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 2, coordinateSpace: .named("grid"))

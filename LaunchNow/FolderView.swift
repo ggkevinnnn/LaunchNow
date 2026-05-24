@@ -387,8 +387,6 @@ extension FolderView {
             // 拖拽时隐藏原始图标
             .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : 1)
             .animation(LNAnimations.easeInOut, value: isSettlingDrop)
-            // 占位符插入时的布局动画
-            .animation(LNAnimations.easeInOut, value: pendingDropIndex)
             .allowsHitTesting(!isDraggingThisTile)
             .contentTransition(.opacity)
             .animation(LNAnimations.smooth, value: isSelected)
