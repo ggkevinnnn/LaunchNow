@@ -167,7 +167,6 @@ struct LaunchpadView: View {
     @State private var cachedPages: [[LaunchpadItem]] = []
     @State private var isFolderContentReady: Bool = false
     @State private var folderContentToken: UUID = UUID()
-    private let folderAnimation: Animation = .easeIn(duration: 0.2)
 
     private var isFolderOpen: Bool { appStore.openFolder != nil }
     private var isPagingInteractionActive: Bool {
@@ -500,7 +499,7 @@ struct LaunchpadView: View {
                         // 如果正在编辑文件夹名称，不关闭文件夹
                         if !appStore.isFolderNameEditing {
                             let closingFolder = appStore.openFolder
-                            withAnimation(folderAnimation) {
+                            withAnimation(LNAnimations.folder) {
                                 appStore.openFolder = nil
                             }
                             // 关闭后将键盘导航选中项切换到该文件夹
@@ -519,65 +518,68 @@ struct LaunchpadView: View {
                     }
 
                 if let openFolder = appStore.openFolder {
-                    GeometryReader { proxy in
-                        let targetWidth = proxy.size.width * 0.7
-                        let targetHeight = proxy.size.height * 0.7
-                        let folderId = openFolder.id
-                        
-                        ZStack {
-                            if isFolderContentReady {
-                                // 使用计算属性来确保绑定能够正确响应folderUpdateTrigger的变化
-                                let folderBinding = Binding<FolderInfo>(
-                                    get: {
-                                        // 每次访问都重新查找文件夹，确保获取最新状态
-                                        if let idx = appStore.folders.firstIndex(where: { $0.id == folderId }) {
-                                            return appStore.folders[idx]
-                                        }
-                                        return openFolder
-                                    },
-                                    set: { newValue in
-                                        appStore.updateFolderSnapshot(newValue)
-                                    }
-                                )
-                                
-                                FolderView(
-                                    appStore: appStore,
-                                    folder: folderBinding,
-                                    preferredIconSize: currentIconSize,
-                                    deferGridUntilOpened: false, // 图标已加载完成，立即显示网格
-                                    onClose: {
-                                        let closingFolder = appStore.openFolder
-                                        withAnimation(folderAnimation) {
-                                            appStore.openFolder = nil
-                                        }
-                                        // 关闭后将键盘导航选中项切换到该文件夹
-                                        if let folder = closingFolder,
-                                           let idx = filteredItems.firstIndex(of: .folder(folder)) {
-                                            isKeyboardNavigationActive = true
-                                            selectedIndex = idx
-                                            let targetPage = idx / config.itemsPerPage
-                                            if targetPage != appStore.currentPage {
-                                                appStore.currentPage = targetPage
+                    Group {
+                        GeometryReader { proxy in
+                            let targetWidth = proxy.size.width * 0.7
+                            let targetHeight = proxy.size.height * 0.7
+                            let folderId = openFolder.id
+                            
+                            ZStack {
+                                if isFolderContentReady {
+                                    // 使用计算属性来确保绑定能够正确响应folderUpdateTrigger的变化
+                                    let folderBinding = Binding<FolderInfo>(
+                                        get: {
+                                            // 每次访问都重新查找文件夹，确保获取最新状态
+                                            if let idx = appStore.folders.firstIndex(where: { $0.id == folderId }) {
+                                                return appStore.folders[idx]
                                             }
+                                            return openFolder
+                                        },
+                                        set: { newValue in
+                                            appStore.updateFolderSnapshot(newValue)
                                         }
-                                        // 关闭文件夹后恢复搜索框焦点
-                                        isSearchFieldFocused = true
-                                    },
-                                    onLaunchApp: { app in
-                                        launchApp(app)
-                                    }
-                                )
-                                .transition(.opacity)
-                            } else {
-                                FolderShellView(name: openFolder.name)
+                                    )
+                                    
+                                    FolderView(
+                                        appStore: appStore,
+                                        folder: folderBinding,
+                                        preferredIconSize: currentIconSize,
+                                        deferGridUntilOpened: false, // 图标已加载完成，立即显示网格
+                                        onClose: {
+                                            let closingFolder = appStore.openFolder
+                                            withAnimation(LNAnimations.folder) {
+                                                appStore.openFolder = nil
+                                            }
+                                            // 关闭后将键盘导航选中项切换到该文件夹
+                                            if let folder = closingFolder,
+                                               let idx = filteredItems.firstIndex(of: .folder(folder)) {
+                                                isKeyboardNavigationActive = true
+                                                selectedIndex = idx
+                                                let targetPage = idx / config.itemsPerPage
+                                                if targetPage != appStore.currentPage {
+                                                    appStore.currentPage = targetPage
+                                                }
+                                            }
+                                            // 关闭文件夹后恢复搜索框焦点
+                                            isSearchFieldFocused = true
+                                        },
+                                        onLaunchApp: { app in
+                                            launchApp(app)
+                                        }
+                                    )
+                                    .transition(.opacity)
+                                } else {
+                                    FolderShellView(name: openFolder.name)
+                                }
                             }
+                            .environmentObject(appStore)
+                            .frame(width: targetWidth, height: targetHeight)
+                            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                            .id("folder_\(folderId)")
+                            
                         }
-                        .environmentObject(appStore)
-                        .frame(width: targetWidth, height: targetHeight)
-                        .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
-                        .id("folder_\(folderId)") // 使用稳定ID，避免每次更新导致视图重建
-                        
                     }
+                    .transition(.scaleWithEarlyOpacity)
                 }
             }
         )
@@ -670,7 +672,7 @@ struct LaunchpadView: View {
         case .app(let app):
             launchApp(app)
         case .folder(let folder):
-            withAnimation(folderAnimation) {
+            withAnimation(LNAnimations.folder) {
                 appStore.openFolder = folder
             }
         case .empty:
@@ -686,7 +688,7 @@ struct LaunchpadView: View {
         let appPaths = folder.apps.map(\.url.path)
         let reveal: () -> Void = {
             guard folderContentToken == token else { return }
-            withAnimation(folderAnimation) {
+            withAnimation(LNAnimations.folder) {
                 isFolderContentReady = true
             }
         }
@@ -982,7 +984,7 @@ extension LaunchpadView {
         if isFolderOpen {
             if event.keyCode == 53 { // esc
                 let closingFolder = appStore.openFolder
-                withAnimation(folderAnimation) {
+                withAnimation(LNAnimations.folder) {
                     appStore.openFolder = nil
                 }
                 if let folder = closingFolder,
@@ -2307,6 +2309,52 @@ struct DragPreviewItem: View {
         case .empty:
             EmptyView()
         }
+    }
+}
+
+// MARK: - 文件夹缩放+快速透明度过渡
+private struct FolderZoomInModifier: ViewModifier, Animatable {
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = max(0, min(1, newValue)) }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(progress)
+            .opacity(min(1, progress / 0.9))
+    }
+}
+
+private struct FolderZoomOutModifier: ViewModifier, Animatable {
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = max(0, min(1, newValue)) }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(progress)
+            .opacity(max(0, (progress - 0.1) / 0.9))
+    }
+}
+
+private extension AnyTransition {
+    static var scaleWithEarlyOpacity: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: FolderZoomInModifier(progress: 0),
+                identity: FolderZoomInModifier(progress: 1)
+            ),
+            removal: .modifier(
+                active: FolderZoomOutModifier(progress: 0),
+                identity: FolderZoomOutModifier(progress: 1)
+            )
+        )
     }
 }
 
