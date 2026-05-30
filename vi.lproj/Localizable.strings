@@ -38,25 +38,25 @@
 
 //WelcomeView
 "Welcome" = "Chào Mừng Tới LaunchNow";
-"Drag" = "Drag app icons to customize app sorts.";
+"Drag" = " Kéo biểu tượng ứng dụng để tuỳ chỉnh thứ tự ứng ";
 "Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
-"Scroll" = "Scroll to turn to other pages.";
+"Scroll" = "Cuộn chuột để chuyển sang các trang khác.";
 "RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
-"StartNow" = "Start Now";
+"StartNow" = "Bắt Đầu Ngay";
 "Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
 
 //Updater
 "FoundNewVersion" = "Đã Tìm Thấy Phiên Bản Mới: ";
 "GoToGithub" = "Xin hãy tới Github để tải về bản cập nhật mới nhất";
 "AlreadyLatest" = "Đã có bản cập nhật mới : ";
-"Enjoy" = "Enjoy!";
+"Enjoy" = "Chúc bạn sử dụng ứng dụng thật tốt!";
 
 //new
-"CustomizeScannedFolder" = "Customize scanned folder";
+"CustomizeScannedFolder" = "Tuỳ Chỉnh Các Thư Mục Đã Quét";
 "Add" = "Thêm";
-"AddFolder" = "Add folder";
+"AddFolder" = "Thêm Thư ";
 "ResetToDefault" = "Khôi Phục Mặc Đinh";
-"NoFolders" = "No folders";
+"NoFolders" = "Không có thư mục được chọn";
 
 "IconSize" = "Kích cỡ biểu tượng";
 "Small" = "Nhỏ";
@@ -64,10 +64,10 @@
 "DefaultSize" = "Kích cỡ mặc định";
 "HiddenApps" = "Ứng Dụng Ẩn";
 "HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
-"NoHiddenApps" = "Không có ứng dụng ẩn";
+"NoHiddenApps" = "Không có ứng dụng đang ẩn";
 "Hide" = "Ẩn";
-"ClearHiddenApps" = "Clear hidden";
-"MoveToFolder" = "Move to Folder";
+"ClearHiddenApps" = "Xoá ";
+"MoveToFolder" = "Di chuyển vào thư mục";
 
 "Gesture" = "4-Finger Trackpad Gesture";
 "Glasseffect" = "Bật hiệu ứng Thuỷ tinh cho phông nền";
