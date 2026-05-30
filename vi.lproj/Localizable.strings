@@ -6,7 +6,7 @@
 //
 
 //SettingsView
-"Style" = "Classic Launchpad (Fullscreen)";
+"Style" = "Thiết Kế LaunchPad Cổ Điển (Toàn Màn Hình)";
 "ShowAppName" = "Hiển thị tên ứng dụng";
 "ScrollSensitivity" = "Độ nhạy cuộn chuột";
 "Low" = "Thấp";
@@ -18,26 +18,26 @@
 "ConfirmReset" = "Bạn xác nhận bạn muốn mặc định lại bố trí ứng dụng?";
 "Reset" = "Xác nhận";
 "Cancel" = "Huỷ ";
-"ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
+"ResetAlert" = "Chức năng này sẽ hoàn toàn khôi phục lại bố trí ứng dụng: xoá tất cả các thư mục, xoá tất cả mọi thứ tự ứng dụng đã lưu, và quét lại danh sách ứng dụng. Tất cả mọi bố trí tuỳ chỉnh sẽ mất.";
 "Quit" = "Thoát";
-"DisplayedLanguage" = "Ngôn ngữ hiển ";
+"DisplayedLanguage" = "Ngôn ngữ hiển thị";
 "Language" = "Ngôn ngữ...";
-"ShowWelcome" = "Show Introduction";
-"Confirm" = "Confirm";
-"CheckUpdates" = "Check for Updates";
+"ShowWelcome" = "Hiển thị lời chào";
+"Confirm" = "Xác Nhận";
+"CheckUpdates" = "Kiểm tra bản cập nhật mới";
 
 //LaunchpadView
-"Search" = "Search";
-"NoAppsFound" = "No Apps Found";
+"Search" = "";
+"NoAppsFound" = "Không Tìm Thấy Ứng Dụng";
 
 //FolderView
-"FolderName" = "FolderName";
+"FolderName" = "TênThưMục";
 
 //FolderInfo
-"Untitled" = "Untitled";
+"Untitled" = "Thư Mục Mới";
 
 //WelcomeView
-"Welcome" = "Welcome to LaunchNow";
+"Welcome" = "Chào Mừng Tới LaunchNow";
 "Drag" = "Drag app icons to customize app sorts.";
 "Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
 "Scroll" = "Scroll to turn to other pages.";
@@ -46,28 +46,28 @@
 "Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
 
 //Updater
-"FoundNewVersion" = "Found New Version: ";
-"GoToGithub" = "Go to Github to download the latest version";
-"AlreadyLatest" = "Already the latest version: ";
+"FoundNewVersion" = "Đã Tìm Thấy Phiên Bản Mới: ";
+"GoToGithub" = "Xin hãy tới Github để tải về bản cập nhật mới nhất";
+"AlreadyLatest" = "Đã có bản cập nhật mới : ";
 "Enjoy" = "Enjoy!";
 
 //new
 "CustomizeScannedFolder" = "Customize scanned folder";
-"Add" = "Add";
+"Add" = "Thêm";
 "AddFolder" = "Add folder";
-"ResetToDefault" = "Reset to default";
+"ResetToDefault" = "Khôi Phục Mặc Đinh";
 "NoFolders" = "No folders";
 
-"IconSize" = "Icon size";
-"Small" = "Small";
-"Large" = "Large";
-"DefaultSize" = "Default size";
-"HiddenApps" = "Hidden apps";
+"IconSize" = "Kích cỡ biểu tượng";
+"Small" = "Nhỏ";
+"Large" = "To";
+"DefaultSize" = "Kích cỡ mặc định";
+"HiddenApps" = "Ứng Dụng Ẩn";
 "HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
-"NoHiddenApps" = "No hidden apps";
-"Hide" = "Hide";
+"NoHiddenApps" = "Không có ứng dụng ẩn";
+"Hide" = "Ẩn";
 "ClearHiddenApps" = "Clear hidden";
 "MoveToFolder" = "Move to Folder";
 
 "Gesture" = "4-Finger Trackpad Gesture";
-"Glasseffect" = "Enable Glass Effect Background";
+"Glasseffect" = "Bật hiệu ứng Thuỷ tinh cho phông nền";
