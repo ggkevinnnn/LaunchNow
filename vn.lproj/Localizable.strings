@@ -7,21 +7,21 @@
 
 //SettingsView
 "Style" = "Classic Launchpad (Fullscreen)";
-"ShowAppName" = "Show app name";
-"ScrollSensitivity" = "Scrolling sensitivity";
-"Low" = "Low";
-"High" = "High";
-"Export" = "Export Data";
-"Import" = "Import Data";
-"Refresh" = "Refresh";
-"ResetLayout" = "Reset Layout";
-"ConfirmReset" = "Confirm to reset layout?";
-"Reset" = "Reset";
-"Cancel" = "Cancel";
+"ShowAppName" = "Hiển thị tên ứng dụng";
+"ScrollSensitivity" = "Độ nhạy cuộn chuột";
+"Low" = "Thấp";
+"High" = "Cao";
+"Export" = "Xuất cài đặt";
+"Import" = "Nhập cài đặt";
+"Refresh" = "Làm mới danh sách ứng dụng";
+"ResetLayout" = "Mặc định bố trí ứng dụng";
+"ConfirmReset" = "Bạn xác nhận bạn muốn mặc định lại bố trí ứng dụng?";
+"Reset" = "Xác nhận";
+"Cancel" = "Huỷ ";
 "ResetAlert" = "This will completely reset the layout: remove all folders, clear saved order, and rescan all applications. All customizations will be lost.";
-"Quit" = "Quit";
-"DisplayedLanguage" = "Displayed language";
-"Language" = "Language...";
+"Quit" = "Thoát";
+"DisplayedLanguage" = "Ngôn ngữ hiển ";
+"Language" = "Ngôn ngữ...";
 "ShowWelcome" = "Show Introduction";
 "Confirm" = "Confirm";
 "CheckUpdates" = "Check for Updates";
