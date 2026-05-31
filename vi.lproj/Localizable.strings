@@ -8,7 +8,7 @@
 //SettingsView
 "Style" = "Thiết Kế LaunchPad Cổ Điển (Toàn Màn Hình)";
 "ShowAppName" = "Hiển thị tên ứng dụng";
-"ScrollSensitivity" = "Độ nhạy cuộn chuột";
+"ScrollSensitivity" = "Độ Nhạy Cuộn Chuột";
 "Low" = "Thấp";
 "High" = "Cao";
 "Export" = "Xuất Cài Đặt";
@@ -39,23 +39,23 @@
 //WelcomeView
 "Welcome" = "Chào Mừng Tới LaunchNow";
 "Drag" = " Kéo biểu tượng ứng dụng để chỉnh sửa thứ tự.";
-"Hover" = "Kéo ứng dụng vào một ứng dụng khác để tạo thư mục mới, hoặc kéo ứng dụng vào thư mục có sẵn để thêm vào thư mục đó; Nhấn giữ phím "OPTION" để bật chế độ khoá (chỉnh sửa thứ tự ứng dụng khác sẽ bị hạn chế, chỉ có thể tạo thư mục mới hoặc thêm ứng dụng vào thư mục đã có) .";
+"Hover" = "Kéo ứng dụng vào một ứng dụng khác để tạo thư mục mới, hoặc kéo ứng dụng vào thư mục có sẵn để thêm vào thư mục đó; Nhấn giữ phím "OPTION" để bật chế độ khoá (chỉnh sửa thứ tự ứng dụng khác sẽ bị hạn chế, chỉ có thể tạo thư mục mới hoặc thêm ứng dụng vào thư mục đã có).";
 "Scroll" = "Cuộn chuột để chuyển sang các trang khác.";
-"RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
+"RunOnBackground" = "Tự động chạy ngầm: Thêm LaunchNow vào Dock, hoặc dùng những cách tuỳ chỉnh khác để bật cửa sổ ứng dụng.";
 "StartNow" = "Bắt Đầu Ngay";
-"Keyboard" = "Keyboard navigation is supported, use Tab or Shift+Tab to turn to another page, use Arrow keys to change the chosen app, use Return to open app.";
+"Keyboard" = "Hỗ trợ điều hướng bàn phím, dùng phím "Tab" hoặc "Shift+Tab" để chuyển sang trang khác, dùng phím mũi tên để thay đổi ứng dụng được chọn, dùng phím "Return" để mở ứng dụng được chọn.";
 
 //Updater
 "FoundNewVersion" = "Đã Tìm Thấy Phiên Bản Mới: ";
-"GoToGithub" = "Xin hãy tới Github để tải về bản cập nhật mới nhất";
-"AlreadyLatest" = "Đã có bản cập nhật mới : ";
-"Enjoy" = "Chúc bạn sử dụng ứng dụng thật tốt!";
+"GoToGithub" = "Hãy tới Github để tải về bản cập nhật mới nhất";
+"AlreadyLatest" = "Đã có bản cập nhật mới nhất: ";
+"Enjoy" = "Chúc bạn có một trải nghiệm tốt khi dùng ứng dụng!";
 
 //new
 "CustomizeScannedFolder" = "Tuỳ Chỉnh Các Thư Mục Đã Quét";
 "Add" = "Thêm";
-"AddFolder" = "Thêm Thư ";
-"ResetToDefault" = "Khôi Phục Mặc Đinh";
+"AddFolder" = "Thêm Thư  ";
+"ResetToDefault" = "Khôi Phục Mặc Định";
 "NoFolders" = "Không có thư mục được chọn";
 
 "IconSize" = "Kích cỡ biểu tượng";
@@ -63,11 +63,11 @@
 "Large" = "To";
 "DefaultSize" = "Kích cỡ mặc định";
 "HiddenApps" = "Ứng Dụng Ẩn";
-"HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
+"HideAppsHint" = "Chọn ứng dụng để ẩn.";
 "NoHiddenApps" = "Không có ứng dụng đang ẩn";
 "Hide" = "Ẩn";
 "ClearHiddenApps" = "Xoá Ẩn";
 "MoveToFolder" = "Di chuyển vào thư mục";
 
-"Gesture" = "4-Finger Trackpad Gesture";
+"Gesture" = Cử Chỉ 4-Ngón Tay Trên Bàn Di Chuột";
 "Glasseffect" = "Bật hiệu ứng Thuỷ tinh cho phông nền";
