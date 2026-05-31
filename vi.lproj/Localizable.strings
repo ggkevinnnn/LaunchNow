@@ -11,14 +11,14 @@
 "ScrollSensitivity" = "Độ nhạy cuộn chuột";
 "Low" = "Thấp";
 "High" = "Cao";
-"Export" = "Xuất cài đặt";
-"Import" = "Nhập cài đặt";
-"Refresh" = "Làm mới danh sách ứng dụng";
-"ResetLayout" = "Mặc định bố trí ứng dụng";
-"ConfirmReset" = "Bạn xác nhận bạn muốn mặc định lại bố trí ứng dụng?";
-"Reset" = "Xác nhận";
-"Cancel" = "Huỷ ";
-"ResetAlert" = "Chức năng này sẽ hoàn toàn khôi phục lại bố trí ứng dụng: xoá tất cả các thư mục, xoá tất cả mọi thứ tự ứng dụng đã lưu, và quét lại danh sách ứng dụng. Tất cả mọi bố trí tuỳ chỉnh sẽ mất.";
+"Export" = "Xuất Cài Đặt";
+"Import" = "Nhập Cài Đặt";
+"Refresh" = "Làm ";
+"ResetLayout" = "Reset Bố Cục";
+"ConfirmReset" = "Xác nhận mặc định lại bố cục ứng dụng?";
+"Reset" = "Xác Nhận";
+"Cancel" = "Huỷ";
+"ResetAlert" = "Chức năng này sẽ reset lại bố cục ứng dụng: xoá tất cả thư mục, khôi phục thứ tự ứng dụng về ban đầu, và quét lại danh sách ứng dụng. Mọi tuỳ chỉnh sẽ bị gỡ bỏ.";
 "Quit" = "Thoát";
 "DisplayedLanguage" = "Ngôn ngữ hiển thị";
 "Language" = "Ngôn ngữ...";
@@ -38,8 +38,8 @@
 
 //WelcomeView
 "Welcome" = "Chào Mừng Tới LaunchNow";
-"Drag" = " Kéo biểu tượng ứng dụng để tuỳ chỉnh thứ tự ứng ";
-"Hover" = "Drag an app and hover on another app/folder to create folder or add the app to folder, press and hold OPTION key to enable lock mode (where the movement of other apps will be prohibited, you can only create folders/add apps to folders) .";
+"Drag" = " Kéo biểu tượng ứng dụng để chỉnh sửa thứ tự.";
+"Hover" = "Kéo ứng dụng vào một ứng dụng khác để tạo thư mục mới, hoặc kéo ứng dụng vào thư mục có sẵn để thêm vào thư mục đó; Nhấn giữ phím "OPTION" để bật chế độ khoá (chỉnh sửa thứ tự ứng dụng khác sẽ bị hạn chế, chỉ có thể tạo thư mục mới hoặc thêm ứng dụng vào thư mục đã có) .";
 "Scroll" = "Cuộn chuột để chuyển sang các trang khác.";
 "RunOnBackground" = "Automatically run on background: add LaunchNow to dock or use other customized ways to open the application window.";
 "StartNow" = "Bắt Đầu Ngay";
@@ -66,7 +66,7 @@
 "HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
 "NoHiddenApps" = "Không có ứng dụng đang ẩn";
 "Hide" = "Ẩn";
-"ClearHiddenApps" = "Xoá ";
+"ClearHiddenApps" = "Xoá Ẩn";
 "MoveToFolder" = "Di chuyển vào thư mục";
 
 "Gesture" = "4-Finger Trackpad Gesture";
