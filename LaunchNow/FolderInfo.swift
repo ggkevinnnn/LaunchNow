@@ -57,6 +57,7 @@ struct FolderInfo: Identifiable, Equatable {
     }
 
     func icon(of side: CGFloat) -> NSImage {
+        dispatchPrecondition(condition: .onQueue(.main))
         let normalizedSide = max(16, side)
         let key = folderIconCacheKey(side: normalizedSide) as NSString
         // Fast path: cached image exists
@@ -83,20 +84,18 @@ struct FolderInfo: Identifiable, Equatable {
             image.lockFocus()
             defer { image.unlockFocus() }
 
-            if let ctx = NSGraphicsContext.current {
-                ctx.imageInterpolation = .high
-                ctx.shouldAntialias = true
-            }
+            guard let ctx = NSGraphicsContext.current else { return image }
+            ctx.imageInterpolation = .high
+            ctx.shouldAntialias = true
 
             let rect = NSRect(origin: .zero, size: size)
-
             let outerInset = round(side * 0.12)
             let contentRect = rect.insetBy(dx: outerInset, dy: outerInset)
             let innerInset = round(contentRect.width * 0.08)
             let innerRect = contentRect.insetBy(dx: innerInset, dy: innerInset)
 
             let spacing = max(2, round(innerRect.width * 0.04))
-            let tile = floor((innerRect.width - spacing) / 2)
+            let tile = max(1, floor((innerRect.width - spacing) / 2))
             let startX = innerRect.minX
             let topY = innerRect.maxY
 
@@ -107,13 +106,11 @@ struct FolderInfo: Identifiable, Equatable {
                 let y = topY - CGFloat(rowTopFirst + 1) * tile - CGFloat(rowTopFirst) * spacing
                 let iconRect = NSRect(x: x, y: y, width: tile, height: tile)
 
-                // Fallback: if app icon is empty, use system file icon
                 let iconToDraw: NSImage = {
                     if app.icon.size.width > 0 && app.icon.size.height > 0 {
                         return app.icon
-                    } else {
-                        return NSWorkspace.shared.icon(forFile: app.url.path)
                     }
+                    return NSWorkspace.shared.icon(forFile: app.url.path)
                 }()
                 iconToDraw.draw(in: iconRect)
             }
