@@ -129,6 +129,7 @@ final class AppStore: ObservableObject {
     private var hasPerformedInitialScan: Bool = false
     private var cancellables: Set<AnyCancellable> = []
     private var hasAppliedOrderFromStore: Bool = false
+    private var hasMigratedLegacyData: Bool = false
     
     // 后台刷新队列与节流
     private let refreshQueue = DispatchQueue(label: "app.store.refresh", qos: .userInitiated)
@@ -137,8 +138,8 @@ final class AppStore: ObservableObject {
     private var folderUpdateWorkItem: DispatchWorkItem?
     private var rescanWorkItem: DispatchWorkItem?
     private let fsEventsQueue = DispatchQueue(label: "app.store.fsevents")
-    private let fsEventsStateLock = NSLock()
-    private let searchIndexLock = NSLock()
+    private var fsEventsStateLock = os_unfair_lock()
+    private var searchIndexLock = os_unfair_lock()
     private var appNameIndex: [String: String] = [:]
     private var folderNameIndex: [String: String] = [:]
     
@@ -158,10 +159,6 @@ final class AppStore: ObservableObject {
             if isConfigured {
                 restartAutoRescan()
                 scanApplicationsWithOrderPreservation()
-                // 扫描应用是异步的，这里稍作延迟后清理空页面，确保扫描结果已应用
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                    self?.removeEmptyPages()
-                }
             }
         }
     }
@@ -169,14 +166,9 @@ final class AppStore: ObservableObject {
     @Published var customSearchPaths: [String] = [] {
         didSet {
             UserDefaults.standard.set(customSearchPaths, forKey: "customApplicationSearchPaths")
-            // 路径发生变化时，重启自动扫描监听并触发一次智能扫描
             if isConfigured {
                 restartAutoRescan()
                 scanApplicationsWithOrderPreservation()
-                // 扫描应用是异步的，这里稍作延迟后清理空页面，确保扫描结果已应用
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                    self?.removeEmptyPages()
-                }
             }
         }
     }
@@ -327,7 +319,7 @@ final class AppStore: ObservableObject {
         self.modelContext = modelContext
         self.isConfigured = true
         
-        // 立即尝试加载持久化数据（如果已有数据）——不要过早设置标记，等待加载完成时设置
+        // 立即尝试加载持久化数据
         if !hasAppliedOrderFromStore {
             loadAllOrder()
         }
@@ -336,6 +328,7 @@ final class AppStore: ObservableObject {
             .map { !$0.isEmpty }
             .removeDuplicates()
             .filter { $0 }
+            .first()  // 只执行一次，避免重复加载
             .sink { [weak self] _ in
                 guard let self else { return }
                 if !self.hasAppliedOrderFromStore {
@@ -349,10 +342,7 @@ final class AppStore: ObservableObject {
             .debounce(for: .seconds(0.5), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self = self, !self.items.isEmpty else { return }
-                // 延迟保存，避免频繁保存
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.saveAllOrder()
-                }
+                self.saveAllOrder()
             }
             .store(in: &cancellables)
         
@@ -1097,10 +1087,10 @@ final class AppStore: ObservableObject {
         }
 
         if localForceFull || !localChanged.isEmpty {
-            fsEventsStateLock.lock()
+            os_unfair_lock_lock(&fsEventsStateLock)
             if localForceFull { pendingForceFullScan = true }
             if !localChanged.isEmpty { pendingChangedAppPaths.formUnion(localChanged) }
-            fsEventsStateLock.unlock()
+            os_unfair_lock_unlock(&fsEventsStateLock)
         }
         scheduleRescan()
     }
@@ -1116,7 +1106,7 @@ final class AppStore: ObservableObject {
     private func performImmediateRefresh() {
         var shouldFull = false
         var changed: Set<String> = []
-        fsEventsStateLock.lock()
+        os_unfair_lock_lock(&fsEventsStateLock)
         shouldFull = pendingForceFullScan || pendingChangedAppPaths.count > fullRescanThreshold
         if shouldFull {
             pendingForceFullScan = false
@@ -1125,7 +1115,7 @@ final class AppStore: ObservableObject {
             changed = pendingChangedAppPaths
             pendingChangedAppPaths.removeAll()
         }
-        fsEventsStateLock.unlock()
+        os_unfair_lock_unlock(&fsEventsStateLock)
         
         if shouldFull {
             scanApplications()
@@ -1275,10 +1265,10 @@ final class AppStore: ObservableObject {
         for folder in folders {
             folderIndex[folder.id] = folder.name.lowercased()
         }
-        searchIndexLock.lock()
+        os_unfair_lock_lock(&searchIndexLock)
         appNameIndex = appIndex
         folderNameIndex = folderIndex
-        searchIndexLock.unlock()
+        os_unfair_lock_unlock(&searchIndexLock)
     }
     
     private func rebuildFilteredItems(items: [LaunchpadItem], searchText: String) {
@@ -1288,10 +1278,10 @@ final class AppStore: ObservableObject {
             return
         }
         
-        searchIndexLock.lock()
+        os_unfair_lock_lock(&searchIndexLock)
         let appIndex = appNameIndex
         let folderIndex = folderNameIndex
-        searchIndexLock.unlock()
+        os_unfair_lock_unlock(&searchIndexLock)
         
         var result: [LaunchpadItem] = []
         result.reserveCapacity(items.count)
@@ -2047,6 +2037,17 @@ final class AppStore: ObservableObject {
         }
     }
 
+    /// 一次性清理旧版 TopItemData 数据（忽略错误）
+    private func cleanupLegacyData() {
+        guard let modelContext else { return }
+        do {
+            let legacy = try modelContext.fetch(FetchDescriptor<TopItemData>())
+            guard !legacy.isEmpty else { return }
+            for row in legacy { modelContext.delete(row) }
+            try modelContext.save()
+        } catch { }
+    }
+
     func saveAllOrder() {
         guard let modelContext else {
             return
@@ -2100,15 +2101,15 @@ final class AppStore: ObservableObject {
                     modelContext.insert(row)
                 }
             }
+            // 只在新模型中保存，旧版表将由迁移逻辑一次性清理
             try modelContext.save()
-            
-            // 清理旧版表，避免占用空间（忽略错误）
-            do {
-                let legacy = try modelContext.fetch(FetchDescriptor<TopItemData>())
-                for row in legacy { modelContext.delete(row) }
-                try? modelContext.save()
-            } catch { }
         } catch {
+        }
+        
+        // 一次性清理旧版数据（仅首次保存时执行）
+        if !hasMigratedLegacyData {
+            hasMigratedLegacyData = true
+            cleanupLegacyData()
         }
     }
 
@@ -2466,16 +2467,7 @@ final class AppStore: ObservableObject {
     
     /// 文件夹操作后刷新缓存，确保搜索功能正常工作
     private func refreshCacheAfterFolderOperation() {
-        // 直接刷新缓存，确保包含所有应用（包括文件夹内的应用）
         cacheManager.refreshCache(from: apps, items: items)
-        
-        // 清空搜索文本，确保搜索状态重置
-        // 这样可以避免搜索时显示过时的结果
-        if !searchText.isEmpty {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                self?.searchText = ""
-            }
-        }
     }
     
     // MARK: - 导入应用排序功能
