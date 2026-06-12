@@ -80,7 +80,6 @@ final class GlobalPinchGestureMonitor {
     private var onGestureEnded: (() -> Void)?
     private var lastRecognitionAt = Date.distantPast
     private var sessionsByDeviceID: [UInt: PinchSession] = [:]
-    private var deviceRefreshTimer: Timer?
 
     private let minimumTouchCount = 4
     private let pinchInRatioThreshold: CGFloat = 0.9
@@ -127,12 +126,9 @@ final class GlobalPinchGestureMonitor {
                 NSLog("LaunchNow: failed to start global pinch monitor: \(String(describing: error))")
             }
         }
-
-        startDeviceRefreshTimer()
     }
 
     func stop() {
-        stopDeviceRefreshTimer()
         sessionsByDeviceID.removeAll()
         onPinchIn = nil
         onPinchOut = nil
@@ -361,17 +357,6 @@ final class GlobalPinchGestureMonitor {
         sessionsByDeviceID[deviceID] = session
     }
 
-    private func startDeviceRefreshTimer() {
-        deviceRefreshTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
-            self?.multitouch?.refreshDevices()
-        }
-    }
-
-    private func stopDeviceRefreshTimer() {
-        deviceRefreshTimer?.invalidate()
-        deviceRefreshTimer = nil
-    }
-
     private func requestAccessibilityTrustIfNeeded() {
         guard !AXIsProcessTrusted() else { return }
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
@@ -437,27 +422,6 @@ private final class MultitouchAPI {
         if devices.isEmpty {
             throw MonitorError.noTrackpadDevice
         }
-    }
-
-    func refreshDevices() {
-        guard let list = createList() else { return }
-
-        let count = CFArrayGetCount(list)
-        var newDevices: [MTDeviceRef] = []
-        newDevices.reserveCapacity(count)
-
-        for index in 0 ..< count {
-            let value = CFArrayGetValueAtIndex(list, index)
-            let device = unsafeBitCast(value, to: MTDeviceRef.self)
-            newDevices.append(device)
-
-            if !devices.contains(where: { $0 == device }) {
-                registerCallback(device, GlobalPinchGestureMonitor.callback)
-                _ = startDevice(device, 0)
-            }
-        }
-
-        devices = newDevices
     }
 
     func stop() {

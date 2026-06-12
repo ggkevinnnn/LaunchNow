@@ -145,7 +145,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     
     private func finalizeShownState() {
-        guard let window else { return }
+        guard let window = window else { return }
         let screen = getCurrentActiveScreen() ?? NSScreen.main!
         let rect = appStore.isFullscreenMode ? screen.frame : calculateContentRect(for: screen)
         resetGesturePreviewState()
@@ -163,7 +163,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func requestShowWindow(completion: (() -> Void)? = nil) {
-        guard let window, !window.isVisible else {
+        guard let window = window else {
+            completion?()
+            return
+        }
+        guard !window.isVisible else {
             completion?()
             return
         }
@@ -185,7 +189,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func requestHideWindow(completion: (() -> Void)? = nil) {
-        guard let window, window.isVisible else {
+        guard let window = window else {
+            completion?()
+            return
+        }
+        guard window.isVisible else {
             completion?()
             return
         }
@@ -193,14 +201,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func performWindowTransition(_ direction: WindowTransitionDirection, completion: (() -> Void)? = nil) {
-        guard let window else { completion?(); return }
-        
-        if direction == .show, !window.isVisible, !isAnimatingWindowTransition {
-            performShowTransition(window: window, completion: completion)
-            return
-        }
-        
-        guard window.isVisible, !isAnimatingWindowTransition else {
+        guard let window = window, window.isVisible, !isAnimatingWindowTransition else {
+            if direction == .show, let window, !window.isVisible, !isAnimatingWindowTransition {
+                performShowTransition(window: window, completion: completion)
+                return
+            }
             completion?()
             return
         }
@@ -436,8 +441,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         contentLayer.opacity = Float(alpha)
         CATransaction.commit()
     }
-
-
 
     private func ensureSearchFieldFocusDuringShowGesture(window: NSWindow) {
         guard !gestureSearchFocusAssigned else { return }

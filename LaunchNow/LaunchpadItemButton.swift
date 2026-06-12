@@ -30,6 +30,7 @@ struct LaunchpadItemButton: View {
     }
 
     // Memoized icon to avoid recomputing on every body invocation
+    @inline(__always)
     private func resolveIcon() -> NSImage {
         switch item {
         case .app(let app):
@@ -42,8 +43,9 @@ struct LaunchpadItemButton: View {
             let base = app.icon
             if base.size.width > 0 && base.size.height > 0 {
                 return base
+            } else {
+                return NSWorkspace.shared.icon(forFile: app.url.path)
             }
-            return NSWorkspace.shared.icon(forFile: app.url.path)
         case .folder(let folder):
             return folder.icon(of: iconSize)
         case .empty:

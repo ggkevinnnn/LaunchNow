@@ -51,7 +51,8 @@ struct FolderView: View {
     
     // 优化间距和布局参数
     private let spacing: CGFloat = 30
-    private let columnsCount: Int = 6
+    // 动态列数，根据窗口宽度与单元最小宽度自适应
+    @State private var columnsCount: Int = 4
     private let gridPadding: CGFloat = 16
     private let titlePadding: CGFloat = 16
 
@@ -196,15 +197,16 @@ struct FolderView: View {
     
     @ViewBuilder
     private func appGridSection(geometry geo: GeometryProxy) -> some View {
-        let cols = columnsCount
+        // 固定为 6 列
+        let desiredColumns = 6
         let computedIconBase = min(
-            computeColumnWidth(containerWidth: geo.size.width, columns: cols),
-            computeAppHeight(containerHeight: geo.size.height, columns: cols)
+            computeColumnWidth(containerWidth: geo.size.width, columns: desiredColumns),
+            computeAppHeight(containerHeight: geo.size.height, columns: desiredColumns)
         ) * 0.75
         let iconSize: CGFloat = preferredIconSize ?? (computedIconBase * CGFloat(max(0.4, min(appStore.iconScale, 1.6))))
         // 使用自适应列数重新计算尺寸
-        let recomputedColumnWidth = computeColumnWidth(containerWidth: geo.size.width, columns: cols)
-        let recomputedAppHeight = computeAppHeight(containerHeight: geo.size.height, columns: cols)
+        let recomputedColumnWidth = computeColumnWidth(containerWidth: geo.size.width, columns: desiredColumns)
+        let recomputedAppHeight = computeAppHeight(containerHeight: geo.size.height, columns: desiredColumns)
         // 保障单元格至少能容纳传入的图标尺寸与标签区域
         let columnWidth = max(recomputedColumnWidth, iconSize)
         let appHeight = max(recomputedAppHeight, iconSize + 32)
@@ -213,7 +215,7 @@ struct FolderView: View {
 
         ZStack(alignment: .topLeading) {
             ScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: cols), spacing: spacing) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: desiredColumns), spacing: spacing) {
                     ForEach(Array(slots.enumerated()), id: \.element.id) { index, slot in
                         if case .app(let app) = slot {
                             // 计算实际的应用索引（排除占位符）
@@ -267,6 +269,10 @@ struct FolderView: View {
                 }
             )
             .disabled(isEditingName) // 编辑状态下禁用滚动
+            .onAppear { columnsCount = desiredColumns }
+            .onChange(of: geo.size) {
+                columnsCount = desiredColumns
+            }
 
             // 拖拽预览层
             if let draggingApp {
@@ -330,12 +336,10 @@ struct FolderView: View {
 extension FolderView {
     private func computeAppHeight(containerHeight: CGFloat, columns: Int) -> CGFloat {
         // 自适应列数下估算行高
-        let cols = max(columns, 1)
-        let maxRowsPerPage = max(Int(ceil(Double(folder.apps.count) / Double(cols))), 1)
-        let totalRowSpacing = spacing * CGFloat(maxRowsPerPage - 1)
-        let availableHeight = max(0, containerHeight - totalRowSpacing)
-        let height = availableHeight / CGFloat(maxRowsPerPage)
-        return max(60, min(120, height))
+        let maxRowsPerPage = Int(ceil(Double(folder.apps.count) / Double(max(columns, 1))))
+        let totalRowSpacing = spacing * CGFloat(max(0, maxRowsPerPage - 1))
+        let height = (containerHeight - totalRowSpacing) / CGFloat(maxRowsPerPage == 0 ? 1 : maxRowsPerPage)
+        return max(60, min(120, height)) // 优化高度范围
     }
     
     private func computeColumnWidth(containerWidth: CGFloat, columns: Int) -> CGFloat {
@@ -439,16 +443,16 @@ extension FolderView {
                                                        containerSize: containerSize,
                                                        columnWidth: columnWidth,
                                                        appHeight: appHeight) {
-                            let appCount = visualApps.count
-                            let slotCount = visualAppSlots.count
-                            if appCount > 0,
-                               hoveringIndex < appCount,
-                               hoveringIndex == appCount - 1,
+                            // 将"悬停在最后一个格子"视为插入到末尾，从而推动最后一个向前让位
+                            let count = visualApps.count
+                            if count > 0,
+                               hoveringIndex == count - 1,
                                let dragging = draggingApp,
                                dragging != visualApps[hoveringIndex] {
-                                pendingDropIndex = appCount
+                                pendingDropIndex = count // 末尾插槽
                             } else {
-                                pendingDropIndex = min(hoveringIndex, slotCount)
+                                // 若命中的是"末尾插槽"（== count），保持为 count；其余为格子索引
+                                pendingDropIndex = hoveringIndex
                             }
                         } else {
                             pendingDropIndex = nil
@@ -576,7 +580,6 @@ extension FolderView {
         let contentY = point.y - gridPadding + scrollOffsetY
         
         guard contentX >= 0, contentY >= 0 else { return nil }
-        guard columnWidth + spacing > 0, appHeight + spacing > 0 else { return nil }
         
         let col = Int((contentX + spacing / 2) / (columnWidth + spacing))
         let row = Int((contentY + spacing / 2) / (appHeight + spacing))
@@ -673,6 +676,7 @@ extension FolderView {
 
     private func moveSelection(dx: Int, dy: Int) {
         guard let current = selectedIndex else { return }
+        let columnsCount = max(columnsCount, 1)
         let newIndex: Int = dy == 0 ? current + dx : current + dy * columnsCount
         guard folder.apps.indices.contains(newIndex) else { return }
         selectedIndex = newIndex

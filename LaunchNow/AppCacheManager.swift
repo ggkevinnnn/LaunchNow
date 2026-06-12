@@ -3,7 +3,7 @@ import AppKit
 import Combine
 import os.lock
 
-/// 应用缓存管理器 - 负责缓存应用图标和应用信息以提高性能
+/// 应用缓存管理器 - 负责缓存应用图标、应用信息和网格布局数据以提高性能
 final class AppCacheManager: ObservableObject {
     static let shared = AppCacheManager()
     
@@ -14,46 +14,56 @@ final class AppCacheManager: ObservableObject {
         return cache
     }()
     private var appInfoCache: [String: AppInfo] = [:]
+    private var gridLayoutCache: [String: Any] = [:]
     private var cacheLock = os_unfair_lock()
+    
+    // MARK: - 缓存配置
+    private let maxAppInfoCacheSize = 500
     
     // MARK: - 缓存状态
     @Published var isCacheValid = false
     @Published var lastCacheUpdate = Date.distantPast
     
     private init() {}
-    
     // MARK: - 公共接口
-    
-    /// 收集所有需要缓存的应用（包括文件夹内的应用），去重后返回
-    private static func collectAllApps(_ apps: [AppInfo], from items: [LaunchpadItem]) -> [AppInfo] {
-        var allApps = apps
-        for item in items {
-            if case let .folder(folder) = item {
-                allApps.append(contentsOf: folder.apps)
-            }
-        }
-        var uniqueApps: [AppInfo] = []
-        var seenPaths = Set<String>()
-        for app in allApps {
-            if !seenPaths.contains(app.url.path) {
-                seenPaths.insert(app.url.path)
-                uniqueApps.append(app)
-            }
-        }
-        return uniqueApps
-    }
     
     /// 生成应用缓存 - 在应用启动或扫描后调用
     func generateCache(from apps: [AppInfo], items: [LaunchpadItem]) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else { return }
+            guard let self = self else { return }
             
+            // 清空旧缓存
             self.clearAllCaches()
             
-            let uniqueApps = Self.collectAllApps(apps, from: items)
+            // 收集所有需要缓存的应用，包括文件夹内的应用
+            var allApps: [AppInfo] = []
+            allApps.append(contentsOf: apps)
             
+            // 从items中提取文件夹内的应用
+            for item in items {
+                if case let .folder(folder) = item {
+                    allApps.append(contentsOf: folder.apps)
+                }
+            }
+            
+            // 去重，避免重复缓存同一个应用
+            var uniqueApps: [AppInfo] = []
+            var seenPaths = Set<String>()
+            for app in allApps {
+                if !seenPaths.contains(app.url.path) {
+                    seenPaths.insert(app.url.path)
+                    uniqueApps.append(app)
+                }
+            }
+            
+            // 缓存应用信息
             self.cacheAppInfos(uniqueApps)
+            
+            // 缓存应用图标
             self.cacheAppIcons(uniqueApps)
+            
+            // 缓存网格布局数据
+            self.cacheGridLayout(items)
             
             DispatchQueue.main.async {
                 self.isCacheValid = true
@@ -83,6 +93,14 @@ final class AppCacheManager: ObservableObject {
         return appInfoCache[key]
     }
     
+    /// 获取缓存的网格布局数据
+    func getCachedGridLayout(for layoutKey: String) -> Any? {
+        let key = cacheKeyForGridLayout(layoutKey)
+        os_unfair_lock_lock(&cacheLock)
+        defer { os_unfair_lock_unlock(&cacheLock) }
+        return gridLayoutCache[key]
+    }
+    
     /// 预加载应用图标到缓存
     func preloadIcons(for appPaths: [String]) {
         preloadIcons(for: appPaths, completion: nil)
@@ -90,8 +108,9 @@ final class AppCacheManager: ObservableObject {
 
     /// 预加载应用图标到缓存，并在完成后回调
     func preloadIcons(for appPaths: [String], completion: (() -> Void)?) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            
             for path in appPaths {
                 if self.getCachedIcon(for: path) == nil {
                     let icon = NSWorkspace.shared.icon(forFile: path)
@@ -99,7 +118,9 @@ final class AppCacheManager: ObservableObject {
                     self.iconCache.setObject(icon, forKey: key)
                 }
             }
-            completion?()
+
+            guard let completion else { return }
+            DispatchQueue.main.async(execute: completion)
         }
     }
     
@@ -124,6 +145,7 @@ final class AppCacheManager: ObservableObject {
     func clearAllCaches() {
         os_unfair_lock_lock(&cacheLock)
         appInfoCache.removeAll()
+        gridLayoutCache.removeAll()
         os_unfair_lock_unlock(&cacheLock)
         iconCache.removeAllObjects()
         
@@ -144,7 +166,27 @@ final class AppCacheManager: ObservableObject {
     
     /// 手动刷新缓存
     func refreshCache(from apps: [AppInfo], items: [LaunchpadItem]) {
-        let uniqueApps = Self.collectAllApps(apps, from: items)
+        // 收集所有需要缓存的应用，包括文件夹内的应用
+        var allApps: [AppInfo] = []
+        allApps.append(contentsOf: apps)
+        
+        // 从items中提取文件夹内的应用
+        for item in items {
+            if case let .folder(folder) = item {
+                allApps.append(contentsOf: folder.apps)
+            }
+        }
+        
+        // 去重，避免重复缓存同一个应用
+        var uniqueApps: [AppInfo] = []
+        var seenPaths = Set<String>()
+        for app in allApps {
+            if !seenPaths.contains(app.url.path) {
+                seenPaths.insert(app.url.path)
+                uniqueApps.append(app)
+            }
+        }
+        
         generateCache(from: uniqueApps, items: items)
     }
     
@@ -166,6 +208,63 @@ final class AppCacheManager: ObservableObject {
         }
     }
     
+    private func cacheGridLayout(_ items: [LaunchpadItem]) {
+        // 缓存网格布局相关的计算数据
+        let layoutData = GridLayoutCacheData(
+            totalItems: items.count,
+            itemsPerPage: 35,
+            columns: 7,
+            rows: 5,
+            pageCount: (items.count + 34) / 35
+        )
+        let pageInfo = calculatePageInfo(for: items)
+        let key = cacheKeyForGridLayout("main")
+        let pageKey = cacheKeyForGridLayout("pages")
+        os_unfair_lock_lock(&cacheLock)
+        gridLayoutCache[key] = layoutData
+        gridLayoutCache[pageKey] = pageInfo
+        os_unfair_lock_unlock(&cacheLock)
+        
+    }
+    
+    /// 计算页面信息
+    private func calculatePageInfo(for items: [LaunchpadItem]) -> [PageInfo] {
+        let itemsPerPage = 35
+        let pageCount = (items.count + itemsPerPage - 1) / itemsPerPage
+        
+        var pages: [PageInfo] = []
+        pages.reserveCapacity(pageCount)
+        
+        for pageIndex in 0..<pageCount {
+            let startIndex = pageIndex * itemsPerPage
+            let endIndex = min(startIndex + itemsPerPage, items.count)
+            var appCount = 0
+            var folderCount = 0
+            var emptyCount = 0
+            
+            for item in items[startIndex..<endIndex] {
+                switch item {
+                case .app: appCount += 1
+                case .folder: folderCount += 1
+                case .empty: emptyCount += 1
+                }
+            }
+            
+            let pageInfo = PageInfo(
+                pageIndex: pageIndex,
+                startIndex: startIndex,
+                endIndex: endIndex,
+                appCount: appCount,
+                folderCount: folderCount,
+                emptyCount: emptyCount
+            )
+            
+            pages.append(pageInfo)
+        }
+        
+        return pages
+    }
+    
 }
 
 // MARK: - 缓存键生成（使用原始路径避免 hashValue 碰撞）
@@ -175,6 +274,29 @@ private func cacheKeyForIcon(_ appPath: String) -> String {
 
 private func cacheKeyForAppInfo(_ appPath: String) -> String {
     return "appinfo_\(appPath)"
+}
+
+private func cacheKeyForGridLayout(_ layoutKey: String) -> String {
+    return "grid_\(layoutKey)"
+}
+
+// MARK: - 网格布局缓存数据结构
+
+private struct GridLayoutCacheData {
+    let totalItems: Int
+    let itemsPerPage: Int
+    let columns: Int
+    let rows: Int
+    let pageCount: Int
+}
+
+private struct PageInfo {
+    let pageIndex: Int
+    let startIndex: Int
+    let endIndex: Int
+    let appCount: Int
+    let folderCount: Int
+    let emptyCount: Int
 }
 
 // MARK: - 缓存统计信息

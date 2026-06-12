@@ -45,7 +45,7 @@ private final class ScrollInteractionCoordinator: ObservableObject {
     private var displayTimer: Timer?
     private var isInteractive = false
 
-    private let frameInterval: TimeInterval = 1.0 / 60.0
+    private let frameInterval: TimeInterval = 1.0 / 120.0
     private let publishEpsilon: CGFloat = 0.1
 
     func beginInteractiveGesture() {
@@ -69,7 +69,11 @@ private final class ScrollInteractionCoordinator: ObservableObject {
 
     func publishImmediately(_ offset: CGFloat) {
         pendingOffset = offset
-        renderedOffset = offset
+        if abs(renderedOffset - offset) > publishEpsilon {
+            renderedOffset = offset
+        } else if renderedOffset != offset {
+            renderedOffset = offset
+        }
     }
 
     private func startDisplayTimerIfNeeded() {
@@ -82,15 +86,21 @@ private final class ScrollInteractionCoordinator: ObservableObject {
     }
 
     private func stopDisplayTimerIfIdle() {
-        guard !isInteractive else { return }
-        if abs(renderedOffset - pendingOffset) <= publishEpsilon {
-            displayTimer?.invalidate()
-            displayTimer = nil
-        }
+        guard !isInteractive, abs(renderedOffset - pendingOffset) <= publishEpsilon else { return }
+        displayTimer?.invalidate()
+        displayTimer = nil
     }
 
     private func flushPendingOffset() {
-        renderedOffset = pendingOffset
+        if abs(renderedOffset - pendingOffset) > publishEpsilon {
+            renderedOffset = pendingOffset
+            return
+        }
+
+        if renderedOffset != pendingOffset {
+            renderedOffset = pendingOffset
+        }
+
         stopDisplayTimerIfIdle()
     }
 
@@ -134,6 +144,11 @@ struct LaunchpadView: View {
     
     // 新增：外部网格落点淡入标记
     @State private var lastDroppedItemID: String? = nil
+    
+    // 性能优化：使用静态缓存避免状态修改问题
+    private static var geometryCache: [String: CGPoint] = [:]
+    private static var lastGeometryUpdate: Date = Date.distantPast
+    private let geometryCacheTimeout: TimeInterval = 0.1 // 100ms缓存超时
     
     @State private var isHandoffDragging: Bool = false
     @State private var isUserSwiping: Bool = false
@@ -453,7 +468,7 @@ struct LaunchpadView: View {
         .padding()
         .background {
             if appStore.isGlasseffectEnabled {
-                Color.clear.background(.ultraThinMaterial.opacity(0.7), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+                Color.clear.background(.ultraThinMaterial.opacity(0.72), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
                 Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
             } else {
                 Color.clear.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
@@ -811,7 +826,6 @@ struct LaunchpadView: View {
     }
 
     private func finalizeHandoffDrag() {
-        if let monitor = handoffEventMonitor { NSEvent.removeMonitor(monitor); handoffEventMonitor = nil }
         guard !isSettlingDrop else { return }
         guard draggingItem != nil else { return }
         stopDragContinuationMonitor()
@@ -836,6 +850,8 @@ struct LaunchpadView: View {
         }
         // 让 finalizeDragOperation 处理落点排序逻辑（它内部会设置 isSettlingDrop）
         finalizeDragOperation(containerSize: currentContainerSize, columnWidth: currentColumnWidth, appHeight: currentAppHeight, iconSize: currentIconSize)
+
+        if let monitor = handoffEventMonitor { NSEvent.removeMonitor(monitor); handoffEventMonitor = nil }
     }
 
     private func navigateToPage(_ targetPage: Int, animated: Bool = true) {
@@ -1152,7 +1168,13 @@ extension LaunchpadView {
 // MARK: - View builders
 extension LaunchpadView {
     private func shouldRenderPage(_ index: Int, totalPages: Int) -> Bool {
-        index == appStore.currentPage || (isPagingInteractionActive && abs(index - appStore.currentPage) <= 1)
+        // Current page is always rendered
+        if index == appStore.currentPage { return true }
+        // Adjacent pages are rendered only while swiping or transitioning,
+        // so they are ready the moment they slide into view.
+        // isPageTransitioning stays true for 0.25s after navigation,
+        // keeping them alive for rapid consecutive swipes.
+        return isPagingInteractionActive && abs(index - appStore.currentPage) <= 1
     }
 
     @ViewBuilder
@@ -1296,8 +1318,24 @@ extension LaunchpadView {
                             pageIndex: Int,
                             columnWidth: CGFloat,
                             appHeight: CGFloat) -> CGPoint {
+        // 性能优化：使用缓存避免重复计算
+        let cacheKey = "center_\(globalIndex)_\(pageIndex)_\(containerSize.width)_\(containerSize.height)_\(columnWidth)_\(appHeight)"
+        
+        // 检查缓存是否有效
+        let now = Date()
+        if now.timeIntervalSince(Self.lastGeometryUpdate) < geometryCacheTimeout,
+           let cached = Self.geometryCache[cacheKey] {
+            return cached
+        }
+        
         let origin = cellOrigin(for: globalIndex, in: containerSize, pageIndex: pageIndex, columnWidth: columnWidth, appHeight: appHeight)
-        return CGPoint(x: origin.x + columnWidth / 2, y: origin.y + appHeight / 2)
+        let center = CGPoint(x: origin.x + columnWidth / 2, y: origin.y + appHeight / 2)
+        
+        // 直接更新缓存（这些函数总是在主线程调用）
+        Self.geometryCache[cacheKey] = center
+        Self.lastGeometryUpdate = now
+        
+        return center
     }
 
     private func indexAt(point: CGPoint,
@@ -1336,14 +1374,36 @@ extension LaunchpadView {
                                       columnWidth: CGFloat,
                                       appHeight: CGFloat,
                                       iconSize: CGFloat) -> Bool {
+        // 性能优化：使用缓存避免重复计算
+        let cacheKey = "centerArea_\(targetIndex)_\(pageIndex)_\(containerSize.width)_\(containerSize.height)_\(columnWidth)_\(appHeight)_\(iconSize)"
+        
+        let now = Date()
+        if now.timeIntervalSince(Self.lastGeometryUpdate) < geometryCacheTimeout,
+           let cached = Self.geometryCache[cacheKey] {
+            let centerAreaSize = iconSize * 1.6
+            let centerAreaRect = CGRect(
+                x: cached.x - centerAreaSize / 2,
+                y: cached.y - centerAreaSize / 2,
+                width: centerAreaSize,
+                height: centerAreaSize
+            )
+            return centerAreaRect.contains(point)
+        }
+        
         let targetCenter = cellCenter(for: targetIndex, in: containerSize, pageIndex: pageIndex, columnWidth: columnWidth, appHeight: appHeight)
-        let centerAreaSize = iconSize * 1.2
+        let scale: CGFloat = 1.2
+        let centerAreaSize = iconSize * scale
         let centerAreaRect = CGRect(
             x: targetCenter.x - centerAreaSize / 2,
             y: targetCenter.y - centerAreaSize / 2,
             width: centerAreaSize,
             height: centerAreaSize
         )
+        
+        // 直接更新缓存（这些函数总是在主线程调用）
+        Self.geometryCache[cacheKey] = targetCenter
+        Self.lastGeometryUpdate = now
+        
         return centerAreaRect.contains(point)
     }
 }
@@ -1568,6 +1628,16 @@ extension LaunchpadView {
         currentColumnWidth = columnWidth
         currentAppHeight = appHeight
         currentIconSize = iconSize
+        
+        // 性能优化：清理过期的几何缓存
+        let now = Date()
+        if now.timeIntervalSince(Self.lastGeometryUpdate) > geometryCacheTimeout * 2 {
+            // 异步清理缓存，避免在视图更新期间修改状态
+            DispatchQueue.main.async {
+                Self.geometryCache.removeAll()
+                Self.lastGeometryUpdate = now
+            }
+        }
     }
 
     fileprivate func flipPageIfNeeded(at point: CGPoint, in containerSize: CGSize) -> Bool {
@@ -1687,9 +1757,9 @@ extension LaunchpadView {
 
     // 统一的拖拽结束处理逻辑（普通拖拽与接力拖拽共用）
     private func finalizeDragOperation(containerSize: CGSize, columnWidth: CGFloat, appHeight: CGFloat, iconSize: CGFloat) {
-        stopDragContinuationMonitor()
         guard !isSettlingDrop else { return }
         guard let dragging = draggingItem else { return }
+        stopDragContinuationMonitor()
         isSettlingDrop = true
         
         // Option 模式：如果没有成功创建/加入文件夹，则撤销放置并回弹
@@ -1711,7 +1781,17 @@ extension LaunchpadView {
                     }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    cleanupDragState()
+                    draggingItem = nil
+                    dragSourceItems = nil
+                    pendingDropIndex = nil
+                    dragOriginalIndex = nil
+                    resetDragPagingState()
+                    appStore.isDragCreatingFolder = false
+                    appStore.folderCreationTarget = nil
+                    clearHoveringState()
+                    isSettlingDrop = false
+                    dragPreviewOpacity = 1.0
+                    clampSelection()
                 }
                 return
             }
@@ -1765,8 +1845,16 @@ extension LaunchpadView {
                     }
                 }
                 // 文件夹创建完成后不需要额外淡入
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
-                    cleanupDragState()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    draggingItem = nil
+                    dragSourceItems = nil
+                    pendingDropIndex = nil
+                    dragOriginalIndex = nil
+                    resetDragPagingState()
+                    clearHoveringState()
+                    isSettlingDrop = false
+                    dragPreviewOpacity = 1.0
+                    clampSelection()
                 }
                 return
             } else {
@@ -1789,7 +1877,15 @@ extension LaunchpadView {
                         dragPreviewOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        cleanupDragState()
+                        draggingItem = nil
+                        dragSourceItems = nil
+                        pendingDropIndex = nil
+                        dragOriginalIndex = nil
+                        resetDragPagingState()
+                        clearHoveringState()
+                        isSettlingDrop = false
+                        dragPreviewOpacity = 1.0
+                        clampSelection()
                     }
                     return
                 }
@@ -1920,20 +2016,6 @@ extension LaunchpadView {
         scrollCoordinator.publishImmediately(0)
     }
 
-    private func cleanupDragState() {
-        draggingItem = nil
-        dragSourceItems = nil
-        pendingDropIndex = nil
-        dragOriginalIndex = nil
-        resetDragPagingState()
-        appStore.isDragCreatingFolder = false
-        appStore.folderCreationTarget = nil
-        clearHoveringState()
-        isSettlingDrop = false
-        dragPreviewOpacity = 1.0
-        clampSelection()
-    }
-
     // 统一的拖拽更新逻辑（普通拖拽与接力拖拽共用）
     private func applyDragUpdate(at point: CGPoint,
                                  containerSize: CGSize,
@@ -1947,6 +2029,17 @@ extension LaunchpadView {
         if distance < 2.0 && !isNearEdge { return } // 边缘翻页时允许小位移持续更新
         
         dragPreviewPosition = point
+        
+        // 性能优化：使用节流机制减少计算频率
+        let now = Date()
+        if now.timeIntervalSince(Self.lastGeometryUpdate) < 0.016 { // 约60fps
+            return
+        }
+        
+        // 异步更新几何缓存时间戳，避免在视图更新期间修改状态
+        DispatchQueue.main.async {
+            Self.lastGeometryUpdate = now
+        }
         
         if let hoveringIndex = indexAt(point: dragPreviewPosition,
                                        in: containerSize,
