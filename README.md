@@ -86,6 +86,7 @@ Special thanks to all contributors who helped make LaunchNow better:
 - Japanese translation by @endianoia
 - Korean translation by @D-KoLee
 - Italian & Turkish translations by @wd006
+- Vietnamese translation by @ornithobiograph
 
 ### 📄 License
 
