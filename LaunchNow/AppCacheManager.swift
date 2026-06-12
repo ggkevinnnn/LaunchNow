@@ -90,9 +90,8 @@ final class AppCacheManager: ObservableObject {
 
     /// 预加载应用图标到缓存，并在完成后回调
     func preloadIcons(for appPaths: [String], completion: (() -> Void)?) {
-        DispatchQueue.global(qos: .utility).async { [weak self] in
+        DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            
             for path in appPaths {
                 if self.getCachedIcon(for: path) == nil {
                     let icon = NSWorkspace.shared.icon(forFile: path)
@@ -100,9 +99,7 @@ final class AppCacheManager: ObservableObject {
                     self.iconCache.setObject(icon, forKey: key)
                 }
             }
-
-            guard let completion else { return }
-            DispatchQueue.main.async(execute: completion)
+            completion?()
         }
     }
     

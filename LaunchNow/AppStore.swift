@@ -83,12 +83,6 @@ final class AppStore: ObservableObject {
     // 文件夹相关状态
     @Published var openFolder: FolderInfo? = nil {
         didSet {
-            if let folder = openFolder {
-                let paths = folder.apps.map { $0.url.path }
-                if !paths.isEmpty {
-                    AppCacheManager.shared.preloadIcons(for: paths)
-                }
-            }
             // When closing an open folder, ensure we reset editing/dragging states so grid drag works again
             if oldValue != nil && openFolder == nil {
                 // End any folder-name editing session
@@ -1243,14 +1237,30 @@ final class AppStore: ObservableObject {
     }
 
     private func isValidApp(at url: URL) -> Bool {
-        FileManager.default.fileExists(atPath: url.path) &&
-        NSWorkspace.shared.isFilePackage(atPath: url.path)
+        guard FileManager.default.fileExists(atPath: url.path) else { return false }
+        if Thread.isMainThread {
+            return NSWorkspace.shared.isFilePackage(atPath: url.path)
+        } else {
+            return DispatchQueue.main.sync {
+                NSWorkspace.shared.isFilePackage(atPath: url.path)
+            }
+        }
     }
 
     private func appInfo(from url: URL) -> AppInfo {
         let name = localizedAppName(for: url)
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        let icon = loadIcon(for: url)
         return AppInfo(name: name, icon: icon, url: url)
+    }
+
+    private func loadIcon(for url: URL) -> NSImage {
+        if Thread.isMainThread {
+            NSWorkspace.shared.icon(forFile: url.path)
+        } else {
+            DispatchQueue.main.sync {
+                NSWorkspace.shared.icon(forFile: url.path)
+            }
+        }
     }
     
     // MARK: - Search index & filtered items
