@@ -78,45 +78,43 @@ struct FolderInfo: Identifiable, Equatable {
     }
 
     private func renderFolderIcon(side: CGFloat) -> NSImage {
-        return autoreleasepool { () -> NSImage in
-            let size = NSSize(width: side, height: side)
-            let image = NSImage(size: size)
-            image.lockFocus()
-            defer { image.unlockFocus() }
+        let size = NSSize(width: side, height: side)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        defer { image.unlockFocus() }
 
-            guard let ctx = NSGraphicsContext.current else { return image }
-            ctx.imageInterpolation = .high
-            ctx.shouldAntialias = true
+        guard let ctx = NSGraphicsContext.current else { return image }
+        ctx.imageInterpolation = .high
+        ctx.shouldAntialias = true
 
-            let rect = NSRect(origin: .zero, size: size)
-            let outerInset = round(side * 0.12)
-            let contentRect = rect.insetBy(dx: outerInset, dy: outerInset)
-            let innerInset = round(contentRect.width * 0.08)
-            let innerRect = contentRect.insetBy(dx: innerInset, dy: innerInset)
+        let rect = NSRect(origin: .zero, size: size)
+        let outerInset = round(side * 0.12)
+        let contentRect = rect.insetBy(dx: outerInset, dy: outerInset)
+        let innerInset = round(contentRect.width * 0.08)
+        let innerRect = contentRect.insetBy(dx: innerInset, dy: innerInset)
 
-            let spacing = max(2, round(innerRect.width * 0.04))
-            let tile = max(1, floor((innerRect.width - spacing) / 2))
-            let startX = innerRect.minX
-            let topY = innerRect.maxY
+        let spacing = max(2, round(innerRect.width * 0.04))
+        let tile = max(1, floor((innerRect.width - spacing) / 2))
+        let startX = innerRect.minX
+        let topY = innerRect.maxY
 
-            for (index, app) in apps.prefix(4).enumerated() {
-                let rowTopFirst = index / 2
-                let col = index % 2
-                let x = startX + CGFloat(col) * (tile + spacing)
-                let y = topY - CGFloat(rowTopFirst + 1) * tile - CGFloat(rowTopFirst) * spacing
-                let iconRect = NSRect(x: x, y: y, width: tile, height: tile)
+        for (index, app) in apps.prefix(4).enumerated() {
+            let rowTopFirst = index / 2
+            let col = index % 2
+            let x = startX + CGFloat(col) * (tile + spacing)
+            let y = topY - CGFloat(rowTopFirst + 1) * tile - CGFloat(rowTopFirst) * spacing
+            let iconRect = NSRect(x: x, y: y, width: tile, height: tile)
 
-                let iconToDraw: NSImage = {
-                    if app.icon.size.width > 0 && app.icon.size.height > 0 {
-                        return app.icon
-                    }
-                    return NSWorkspace.shared.icon(forFile: app.url.path)
-                }()
-                iconToDraw.draw(in: iconRect)
-            }
-
-            return image
+            let iconToDraw: NSImage = {
+                if app.icon.size.width > 0 && app.icon.size.height > 0 {
+                    return app.icon
+                }
+                return NSWorkspace.shared.icon(forFile: app.url.path)
+            }()
+            iconToDraw.draw(in: iconRect)
         }
+
+        return image
     }
     
     static func == (lhs: FolderInfo, rhs: FolderInfo) -> Bool {
@@ -130,8 +128,7 @@ enum LaunchpadItem: Identifiable, Equatable {
         let size = NSSize(width: 1, height: 1)
         let img = NSImage(size: size)
         img.lockFocus()
-        NSColor.clear.setFill()
-        NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+        NSRect(origin: .zero, size: size).fill(using: .sourceOver)
         img.unlockFocus()
         return img
     }()

@@ -1152,13 +1152,7 @@ extension LaunchpadView {
 // MARK: - View builders
 extension LaunchpadView {
     private func shouldRenderPage(_ index: Int, totalPages: Int) -> Bool {
-        // Current page is always rendered
-        if index == appStore.currentPage { return true }
-        // Adjacent pages are rendered only while swiping or transitioning,
-        // so they are ready the moment they slide into view.
-        // isPageTransitioning stays true for 0.25s after navigation,
-        // keeping them alive for rapid consecutive swipes.
-        return isPagingInteractionActive && abs(index - appStore.currentPage) <= 1
+        index == appStore.currentPage || (isPagingInteractionActive && abs(index - appStore.currentPage) <= 1)
     }
 
     @ViewBuilder
@@ -1717,17 +1711,7 @@ extension LaunchpadView {
                     }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    draggingItem = nil
-                    dragSourceItems = nil
-                    pendingDropIndex = nil
-                    dragOriginalIndex = nil
-                    resetDragPagingState()
-                    appStore.isDragCreatingFolder = false
-                    appStore.folderCreationTarget = nil
-                    clearHoveringState()
-                    isSettlingDrop = false
-                    dragPreviewOpacity = 1.0
-                    clampSelection()
+                    cleanupDragState()
                 }
                 return
             }
@@ -1781,16 +1765,8 @@ extension LaunchpadView {
                     }
                 }
                 // 文件夹创建完成后不需要额外淡入
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    draggingItem = nil
-                    dragSourceItems = nil
-                    pendingDropIndex = nil
-                    dragOriginalIndex = nil
-                    resetDragPagingState()
-                    clearHoveringState()
-                    isSettlingDrop = false
-                    dragPreviewOpacity = 1.0
-                    clampSelection()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [self] in
+                    cleanupDragState()
                 }
                 return
             } else {
@@ -1813,15 +1789,7 @@ extension LaunchpadView {
                         dragPreviewOpacity = 0.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        draggingItem = nil
-                        dragSourceItems = nil
-                        pendingDropIndex = nil
-                        dragOriginalIndex = nil
-                        resetDragPagingState()
-                        clearHoveringState()
-                        isSettlingDrop = false
-                        dragPreviewOpacity = 1.0
-                        clampSelection()
+                        cleanupDragState()
                     }
                     return
                 }
@@ -1950,6 +1918,20 @@ extension LaunchpadView {
         isSwipeSettling = false
         scrollCoordinator.finishInteractiveGesture()
         scrollCoordinator.publishImmediately(0)
+    }
+
+    private func cleanupDragState() {
+        draggingItem = nil
+        dragSourceItems = nil
+        pendingDropIndex = nil
+        dragOriginalIndex = nil
+        resetDragPagingState()
+        appStore.isDragCreatingFolder = false
+        appStore.folderCreationTarget = nil
+        clearHoveringState()
+        isSettlingDrop = false
+        dragPreviewOpacity = 1.0
+        clampSelection()
     }
 
     // 统一的拖拽更新逻辑（普通拖拽与接力拖拽共用）

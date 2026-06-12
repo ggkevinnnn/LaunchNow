@@ -70,6 +70,13 @@ final class AppStore: ObservableObject {
     // Option 模式：仅允许创建/加入文件夹，禁止网格让位与插入
     @Published var isOptionFolderMode: Bool = false
     
+    /// 当前是否处于接力拖拽状态
+    private var isHandoffDrag: Bool {
+        let currentEventType = NSApp.currentEvent?.type
+        let isDraggingNow = currentEventType == .leftMouseDragged
+        return isDraggingNow || handoffDraggingApp != nil || handoffDragScreenLocation != nil
+    }
+    
     // 缓存管理器
     private let cacheManager = AppCacheManager.shared
     
@@ -1544,11 +1551,6 @@ final class AppStore: ObservableObject {
             }
         }
         
-        // Detect if we're in the middle of a drag handoff out of the folder
-        let currentEventType = NSApp.currentEvent?.type
-        let isDraggingNow = (currentEventType == .leftMouseDragged)
-        let isHandoffDrag = isDraggingNow || handoffDraggingApp != nil || handoffDragScreenLocation != nil
-        
         // 将应用重新添加到应用列表前，先移除所有潜在重复项
         apps.removeAll { $0 == app }
         apps.append(app)
@@ -1669,25 +1671,20 @@ final class AppStore: ObservableObject {
     /// 单页内自动补位：将每页的 .empty 槽位移动到该页尾部，保持非空项的相对顺序
     func compactItemsWithinPages() {
         guard !items.isEmpty else { return }
-        let itemsPerPage = self.itemsPerPage // 使用计算属性
+        let ipm = itemsPerPage
         var result: [LaunchpadItem] = []
         result.reserveCapacity(items.count)
         var index = 0
         while index < items.count {
-            let end = min(index + itemsPerPage, items.count)
-            let pageSlice = Array(items[index..<end])
+            let end = min(index + ipm, items.count)
+            let pageSlice = items[index..<end]
             let nonEmpty = pageSlice.filter { if case .empty = $0 { return false } else { return true } }
             let emptyCount = pageSlice.count - nonEmpty.count
             
-            // 先添加非空项目，保持原有顺序
             result.append(contentsOf: nonEmpty)
             
-            // 再添加empty项目到页面末尾
             if emptyCount > 0 {
-                var empties: [LaunchpadItem] = []
-                empties.reserveCapacity(emptyCount)
-                for _ in 0..<emptyCount { empties.append(.empty(UUID().uuidString)) }
-                result.append(contentsOf: empties)
+                result.append(contentsOf: repeatElement(.empty(UUID().uuidString), count: emptyCount))
             }
             
             index = end
@@ -1969,7 +1966,7 @@ final class AppStore: ObservableObject {
             }
 
             var combined: [LaunchpadItem] = []
-            for row in saved.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+            for row in saved {
                 switch row.kind {
                 case "folder":
                     if let folder = folderMap[row.id] {
@@ -2278,9 +2275,6 @@ final class AppStore: ObservableObject {
     /// 清理空文件夹：移除没有任何应用的文件夹，并同步更新 items
     func pruneEmptyFolders() {
         // 在拖拽接力过程中避免改动布局，防止外部网格位置异常
-        let currentEventType = NSApp.currentEvent?.type
-        let isDraggingNow = (currentEventType == .leftMouseDragged)
-        let isHandoffDrag = isDraggingNow || handoffDraggingApp != nil || handoffDragScreenLocation != nil
         if isHandoffDrag { return }
 
         // 收集空文件夹ID
