@@ -96,7 +96,7 @@ struct FolderInfo: Identifiable, Equatable {
             let innerRect = contentRect.insetBy(dx: innerInset, dy: innerInset)
 
             let spacing = max(2, round(innerRect.width * 0.04))
-            let tile = floor((innerRect.width - spacing) / 2)
+            let tile = max(1, floor((innerRect.width - spacing) / 2))
             let startX = innerRect.minX
             let topY = innerRect.maxY
 

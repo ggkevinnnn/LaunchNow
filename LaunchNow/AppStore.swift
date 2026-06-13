@@ -76,12 +76,6 @@ final class AppStore: ObservableObject {
     // 文件夹相关状态
     @Published var openFolder: FolderInfo? = nil {
         didSet {
-            if let folder = openFolder {
-                let paths = folder.apps.map { $0.url.path }
-                if !paths.isEmpty {
-                    AppCacheManager.shared.preloadIcons(for: paths)
-                }
-            }
             // When closing an open folder, ensure we reset editing/dragging states so grid drag works again
             if oldValue != nil && openFolder == nil {
                 // End any folder-name editing session
