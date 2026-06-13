@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import SwiftData
+import UniformTypeIdentifiers
 
 struct FolderInfo: Identifiable, Equatable {
     // Cache for rendered folder icons to avoid re-drawing on every access
@@ -20,7 +21,7 @@ struct FolderInfo: Identifiable, Equatable {
     // Fast placeholder to avoid blocking UI while real icon is rendered
     private static func placeholderFolderIcon(of side: CGFloat) -> NSImage {
         let normalizedSide = max(16, side)
-        let base = NSImage(named: NSImage.folderName) ?? NSWorkspace.shared.icon(forFileType: NSFileTypeForHFSTypeCode(OSType(kGenericFolderIcon)))
+        let base = NSImage(named: NSImage.folderName) ?? NSWorkspace.shared.icon(forFileType: UTType.folder.identifier)
         // Resize to exact requested side
         let size = NSSize(width: normalizedSide, height: normalizedSide)
         let img = NSImage(size: size)
