@@ -379,7 +379,7 @@ private final class MultitouchAPI {
     private let startDevice: StartDeviceFunc
     private let stopDevice: StopDeviceFunc?
     private var devices: [MTDeviceRef] = []
-    private var refreshTimer: Timer?
+    private var refreshWorkItem: DispatchWorkItem?
 
     init() throws {
         guard let handle = dlopen("/System/Library/PrivateFrameworks/MultitouchSupport.framework/MultitouchSupport", RTLD_NOW) else {
@@ -425,14 +425,12 @@ private final class MultitouchAPI {
             throw MonitorError.noTrackpadDevice
         }
 
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.synchronizeDevices()
-        }
+        scheduleRefresh()
     }
 
     func stop() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
+        refreshWorkItem?.cancel()
+        refreshWorkItem = nil
 
         let devices = devices
         self.devices.removeAll()
@@ -449,11 +447,24 @@ private final class MultitouchAPI {
         }
     }
 
+    private func scheduleRefresh() {
+        refreshWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.synchronizeDevices()
+            self?.scheduleRefresh()
+        }
+        refreshWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: item)
+    }
+
     private func synchronizeDevices() {
         guard let list = createList() else { return }
 
         let count = CFArrayGetCount(list)
+        guard count > 0 else { return }
+
         var newRefs: [MTDeviceRef] = []
+        newRefs.reserveCapacity(count)
         for index in 0 ..< count {
             let value = CFArrayGetValueAtIndex(list, index)
             let device = unsafeBitCast(value, to: MTDeviceRef.self)
@@ -463,9 +474,19 @@ private final class MultitouchAPI {
         let oldSet = Set(devices.map { UInt(bitPattern: $0) })
         let newSet = Set(newRefs.map { UInt(bitPattern: $0) })
 
-        for device in devices where !newSet.contains(UInt(bitPattern: device)) {
+        // Fast path: nothing changed
+        guard oldSet != newSet else { return }
+
+        let removedDevices = devices.filter { !newSet.contains(UInt(bitPattern: $0)) }
+        for device in removedDevices {
             unregisterCallback?(device, GlobalPinchGestureMonitor.callback)
-            stopDevice?(device)
+        }
+        if let stopDevice, !removedDevices.isEmpty {
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) {
+                for device in removedDevices {
+                    _ = stopDevice(device)
+                }
+            }
         }
 
         for device in newRefs where !oldSet.contains(UInt(bitPattern: device)) {
