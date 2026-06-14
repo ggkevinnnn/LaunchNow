@@ -1,6 +1,7 @@
 import ApplicationServices
 import CoreFoundation
 import Darwin
+import Foundation
 
 private struct MTPoint {
     var x: Float
@@ -378,6 +379,7 @@ private final class MultitouchAPI {
     private let startDevice: StartDeviceFunc
     private let stopDevice: StopDeviceFunc?
     private var devices: [MTDeviceRef] = []
+    private var refreshTimer: Timer?
 
     init() throws {
         guard let handle = dlopen("/System/Library/PrivateFrameworks/MultitouchSupport.framework/MultitouchSupport", RTLD_NOW) else {
@@ -422,9 +424,16 @@ private final class MultitouchAPI {
         if devices.isEmpty {
             throw MonitorError.noTrackpadDevice
         }
+
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.synchronizeDevices()
+        }
     }
 
     func stop() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+
         let devices = devices
         self.devices.removeAll()
 
@@ -438,6 +447,33 @@ private final class MultitouchAPI {
                 _ = stopDevice(device)
             }
         }
+    }
+
+    private func synchronizeDevices() {
+        guard let list = createList() else { return }
+
+        let count = CFArrayGetCount(list)
+        var newRefs: [MTDeviceRef] = []
+        for index in 0 ..< count {
+            let value = CFArrayGetValueAtIndex(list, index)
+            let device = unsafeBitCast(value, to: MTDeviceRef.self)
+            newRefs.append(device)
+        }
+
+        let oldSet = Set(devices.map { UInt(bitPattern: $0) })
+        let newSet = Set(newRefs.map { UInt(bitPattern: $0) })
+
+        for device in devices where !newSet.contains(UInt(bitPattern: device)) {
+            unregisterCallback?(device, GlobalPinchGestureMonitor.callback)
+            stopDevice?(device)
+        }
+
+        for device in newRefs where !oldSet.contains(UInt(bitPattern: device)) {
+            registerCallback(device, GlobalPinchGestureMonitor.callback)
+            _ = startDevice(device, 0)
+        }
+
+        devices = newRefs
     }
 
     private static func loadSymbol<T>(_ name: String, from handle: UnsafeMutableRawPointer, as type: T.Type) -> T? {
