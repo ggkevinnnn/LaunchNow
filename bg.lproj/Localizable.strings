@@ -63,11 +63,11 @@
 "Large" = "Голяма";
 "DefaultSize" = "Размер по подразбиране";
 
-"HiddenApps" = "Hidden apps";
-"HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
-"NoHiddenApps" = "No hidden apps";
-"Hide" = "Hide";
-"ClearHiddenApps" = "Clear hidden";
-"MoveToFolder" = "Move to Folder";
-"Gesture" = "4-Finger Trackpad Gesture";
-"Glasseffect" = "Enable Glass Effect Background";
+"HiddenApps" = "Скрити приложения";
+"HideAppsHint" = "Изберете приложения за скриване; те няма да се показват в мрежата с приложения.";
+"NoHiddenApps" = "Няма скрити приложения";
+"Hide" = "Скрити";
+"ClearHiddenApps" = "Изчисти скритите";
+"MoveToFolder" = "Премести в папка";
+"Gesture" = "Жест с 4 пръста върху тракпада";
+"Glasseffect" = "Разрешаване на стъклен ефект за фон";
