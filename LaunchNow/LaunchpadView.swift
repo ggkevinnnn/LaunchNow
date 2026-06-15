@@ -42,29 +42,28 @@ private final class ScrollInteractionCoordinator: ObservableObject {
     var accumulatedScrollX: CGFloat = 0
 
     private var pendingOffset: CGFloat = 0
-    private var displayTimer: Timer?
     private var isInteractive = false
+    private var hasPendingUpdate = false
 
-    private let frameInterval: TimeInterval = 1.0 / 120.0
     private let publishEpsilon: CGFloat = 0.1
 
     func beginInteractiveGesture() {
         accumulatedScrollX = 0
         isInteractive = true
         pendingOffset = 0
-        startDisplayTimerIfNeeded()
+        hasPendingUpdate = false
         publishImmediately(0)
     }
 
     func updateInteractiveOffset(_ offset: CGFloat) {
         pendingOffset = offset
-        startDisplayTimerIfNeeded()
+        coalescedPublish()
     }
 
     func finishInteractiveGesture() {
         accumulatedScrollX = 0
         isInteractive = false
-        stopDisplayTimerIfIdle()
+        hasPendingUpdate = false
     }
 
     func publishImmediately(_ offset: CGFloat) {
@@ -76,36 +75,18 @@ private final class ScrollInteractionCoordinator: ObservableObject {
         }
     }
 
-    private func startDisplayTimerIfNeeded() {
-        guard displayTimer == nil else { return }
-        let timer = Timer(timeInterval: frameInterval, repeats: true) { [weak self] _ in
-            self?.flushPendingOffset()
+    private func coalescedPublish() {
+        guard !hasPendingUpdate else { return }
+        hasPendingUpdate = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isInteractive else { return }
+            self.hasPendingUpdate = false
+            if abs(self.renderedOffset - self.pendingOffset) > self.publishEpsilon {
+                self.renderedOffset = self.pendingOffset
+            } else if self.renderedOffset != self.pendingOffset {
+                self.renderedOffset = self.pendingOffset
+            }
         }
-        displayTimer = timer
-        RunLoop.main.add(timer, forMode: .common)
-    }
-
-    private func stopDisplayTimerIfIdle() {
-        guard !isInteractive, abs(renderedOffset - pendingOffset) <= publishEpsilon else { return }
-        displayTimer?.invalidate()
-        displayTimer = nil
-    }
-
-    private func flushPendingOffset() {
-        if abs(renderedOffset - pendingOffset) > publishEpsilon {
-            renderedOffset = pendingOffset
-            return
-        }
-
-        if renderedOffset != pendingOffset {
-            renderedOffset = pendingOffset
-        }
-
-        stopDisplayTimerIfIdle()
-    }
-
-    deinit {
-        displayTimer?.invalidate()
     }
 }
 
@@ -208,10 +189,16 @@ struct LaunchpadView: View {
     
     private func makePages(from items: [LaunchpadItem]) -> [[LaunchpadItem]] {
         guard !items.isEmpty else { return [] }
-        return stride(from: 0, to: items.count, by: config.itemsPerPage).map { start in
-            let end = min(start + config.itemsPerPage, items.count)
-            return Array(items[start..<end])
+        let itemsPerPage = config.itemsPerPage
+        let totalPages = (items.count + itemsPerPage - 1) / itemsPerPage
+        var result = [[LaunchpadItem]]()
+        result.reserveCapacity(totalPages)
+        for pageIndex in 0..<totalPages {
+            let start = pageIndex * itemsPerPage
+            let end = min(start + itemsPerPage, items.count)
+            result.append(Array(items[start..<end]))
         }
+        return result
     }
     
     var body: some View {
@@ -340,8 +327,6 @@ struct LaunchpadView: View {
                                                     )
                                                 }
                                             }
-                                            .animation(LNAnimations.easeInOut, value: pendingDropIndex)
-                                            .animation(LNAnimations.easeInOut, value: selectedIndex)
                                             .frame(maxHeight: .infinity, alignment: .top)
                                         } else {
                                             Color.clear
@@ -1224,7 +1209,6 @@ extension LaunchpadView {
                 showAppNameBelowIcon: appStore.showAppNameBelowIcon,
                 shouldAllowHover: shouldAllowHover,
                 externalScale: isCenterCreatingTarget ? 1.2 : nil,
-                isAnimating: isPagingInteractionActive,
                 onTap: { if draggingItem == nil { handleItemTap(item) } }
             )
             .equatable()

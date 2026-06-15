@@ -34,12 +34,10 @@ struct LaunchpadItemButton: View {
     private func resolveIcon() -> NSImage {
         switch item {
         case .app(let app):
-            // 尝试从缓存获取图标
             if let cachedIcon = AppCacheManager.shared.getCachedIcon(for: app.url.path),
                cachedIcon.size.width > 0, cachedIcon.size.height > 0 {
                 return cachedIcon
             }
-            // 使用自身图标或兜底到系统图标
             let base = app.icon
             if base.size.width > 0 && base.size.height > 0 {
                 return base
@@ -61,7 +59,6 @@ struct LaunchpadItemButton: View {
         showAppNameBelowIcon: Bool = true,
         shouldAllowHover: Bool = true,
         externalScale: CGFloat? = nil,
-        isAnimating: Bool = false,
         onTap: @escaping () -> Void,
         onDoubleClick: (() -> Void)? = nil) {
             self.item = item

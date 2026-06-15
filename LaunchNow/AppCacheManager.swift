@@ -11,6 +11,7 @@ final class AppCacheManager: ObservableObject {
     private let iconCache: NSCache<NSString, NSImage> = {
         let cache = NSCache<NSString, NSImage>()
         cache.countLimit = 500
+        cache.totalCostLimit = 50 * 1024 * 1024 // 50MB 内存上限
         return cache
     }()
     private var appInfoCache: [String: AppInfo] = [:]
@@ -19,6 +20,7 @@ final class AppCacheManager: ObservableObject {
     
     // MARK: - 缓存配置
     private let maxAppInfoCacheSize = 500
+    private let iconDownsampleSize: CGFloat = 128 // 图标缓存尺寸
     
     // MARK: - 缓存状态
     @Published var isCacheValid = false
@@ -108,17 +110,29 @@ final class AppCacheManager: ObservableObject {
 
     /// 预加载应用图标到缓存，并在完成后回调
     func preloadIcons(for appPaths: [String], completion: (() -> Void)?) {
+        let uncachedPaths = appPaths.filter { getCachedIcon(for: $0) == nil }
+        guard !uncachedPaths.isEmpty else {
+            completion?()
+            return
+        }
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else { return }
-            
-            for path in appPaths {
-                if self.getCachedIcon(for: path) == nil {
-                    let icon = NSWorkspace.shared.icon(forFile: path)
-                    let key = cacheKeyForIcon(path) as NSString
-                    self.iconCache.setObject(icon, forKey: key)
+            let paths = uncachedPaths
+            let group = DispatchGroup()
+            let lock = NSLock()
+            for path in paths {
+                group.enter()
+                DispatchQueue.global(qos: .utility).async {
+                    if self.getCachedIcon(for: path) == nil {
+                        let icon = NSWorkspace.shared.icon(forFile: path)
+                        lock.lock()
+                        self.cacheIcon(icon, for: path)
+                        lock.unlock()
+                    }
+                    group.leave()
                 }
             }
-
+            group.wait()
             guard let completion else { return }
             DispatchQueue.main.async(execute: completion)
         }
@@ -190,6 +204,54 @@ final class AppCacheManager: ObservableObject {
         generateCache(from: uniqueApps, items: items)
     }
     
+    /// 降采样图标到统一尺寸（使用 Core Graphics，线程安全）
+    private func downsampleIcon(_ image: NSImage) -> NSImage {
+        let targetSize = NSSize(width: iconDownsampleSize, height: iconDownsampleSize)
+        guard image.size.width > 0, image.size.height > 0,
+              image.size.width > targetSize.width || image.size.height > targetSize.height else {
+            return image
+        }
+        let scale: CGFloat = 2.0
+        let pixelSize = NSSize(width: targetSize.width * scale, height: targetSize.height * scale)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue
+        guard let context = CGContext(
+            data: nil,
+            width: Int(pixelSize.width),
+            height: Int(pixelSize.height),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ) else {
+            return image
+        }
+        context.interpolationQuality = .high
+        context.setShouldAntialias(true)
+
+        let srcRect = CGRect(origin: .zero, size: CGSize(width: image.size.width, height: image.size.height))
+        let dstRect = CGRect(origin: .zero, size: pixelSize)
+
+        if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            context.draw(cgImage, in: dstRect)
+        } else {
+            return image
+        }
+
+        guard let resultCG = context.makeImage() else {
+            return image
+        }
+        return NSImage(cgImage: resultCG, size: targetSize)
+    }
+
+    /// 降采样并从原始图标缓存到 NSCache
+    private func cacheIcon(_ icon: NSImage, for path: String) {
+        let downsampled = downsampleIcon(icon)
+        let cost = Int(downsampled.size.width * downsampled.size.height * 4)
+        let key = cacheKeyForIcon(path) as NSString
+        iconCache.setObject(downsampled, forKey: key, cost: cost)
+    }
+
     // MARK: - 私有方法
     
     private func cacheAppInfos(_ apps: [AppInfo]) {
@@ -203,8 +265,7 @@ final class AppCacheManager: ObservableObject {
     
     private func cacheAppIcons(_ apps: [AppInfo]) {
         for app in apps {
-            let key = cacheKeyForIcon(app.url.path) as NSString
-            iconCache.setObject(app.icon, forKey: key)
+            cacheIcon(app.icon, for: app.url.path)
         }
     }
     

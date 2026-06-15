@@ -67,31 +67,39 @@ struct FolderInfo: Identifiable, Equatable {
         // Return placeholder immediately to keep UI responsive
         let placeholder = Self.placeholderFolderIcon(of: normalizedSide)
         Self.iconCache.setObject(placeholder, forKey: key)
-        // Render real icon asynchronously to avoid blocking the click/open action
-        DispatchQueue.main.async { [apps, id] in
-            // Recompute and overwrite with the final rendered icon
-            let rendered = self.renderFolderIcon(side: normalizedSide)
-            Self.iconCache.setObject(rendered, forKey: key)
-            NotificationCenter.default.post(name: FolderInfo.folderIconDidUpdate, object: id)
+        // Render real icon off the main thread using Core Graphics
+        DispatchQueue.global(qos: .userInitiated).async { [apps, id, normalizedSide] in
+            let rendered = Self.renderFolderIcon(apps: apps, side: normalizedSide)
+            DispatchQueue.main.async {
+                Self.iconCache.setObject(rendered, forKey: key)
+                NotificationCenter.default.post(name: FolderInfo.folderIconDidUpdate, object: id)
+            }
         }
         return placeholder
     }
 
-    private func renderFolderIcon(side: CGFloat) -> NSImage {
+    private static func renderFolderIcon(apps: [AppInfo], side: CGFloat) -> NSImage {
         return autoreleasepool { () -> NSImage in
-            let size = NSSize(width: side, height: side)
-            let image = NSImage(size: size)
-            image.lockFocus()
-            defer { image.unlockFocus() }
-
-            if let ctx = NSGraphicsContext.current {
-                ctx.imageInterpolation = .high
-                ctx.shouldAntialias = true
+            let scale: CGFloat = 2.0
+            let pixelSize = NSSize(width: side * scale, height: side * scale)
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue
+            guard let context = CGContext(
+                data: nil,
+                width: Int(pixelSize.width),
+                height: Int(pixelSize.height),
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: bitmapInfo
+            ) else {
+                return NSImage(size: NSSize(width: side, height: side))
             }
+            context.interpolationQuality = .high
+            context.setShouldAntialias(true)
 
-            let rect = NSRect(origin: .zero, size: size)
-
-            let outerInset = round(side * 0.12)
+            let rect = CGRect(origin: .zero, size: pixelSize)
+            let outerInset = round(side * 0.12) * scale
             let contentRect = rect.insetBy(dx: outerInset, dy: outerInset)
             let innerInset = round(contentRect.width * 0.08)
             let innerRect = contentRect.insetBy(dx: innerInset, dy: innerInset)
@@ -106,9 +114,8 @@ struct FolderInfo: Identifiable, Equatable {
                 let col = index % 2
                 let x = startX + CGFloat(col) * (tile + spacing)
                 let y = topY - CGFloat(rowTopFirst + 1) * tile - CGFloat(rowTopFirst) * spacing
-                let iconRect = NSRect(x: x, y: y, width: tile, height: tile)
+                let iconRect = CGRect(x: x, y: y, width: tile, height: tile)
 
-                // Fallback: if app icon is empty, use system file icon
                 let iconToDraw: NSImage = {
                     if app.icon.size.width > 0 && app.icon.size.height > 0 {
                         return app.icon
@@ -116,10 +123,16 @@ struct FolderInfo: Identifiable, Equatable {
                         return NSWorkspace.shared.icon(forFile: app.url.path)
                     }
                 }()
-                iconToDraw.draw(in: iconRect)
+                if let cgImage = iconToDraw.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    context.draw(cgImage, in: iconRect)
+                }
             }
 
-            return image
+            guard let cgImage = context.makeImage() else {
+                return NSImage(size: NSSize(width: side, height: side))
+            }
+            let result = NSImage(cgImage: cgImage, size: NSSize(width: side, height: side))
+            return result
         }
     }
     
