@@ -3,6 +3,7 @@
 //  LaunchNow
 //
 //  Created by OABsoftware on 10/17/2025.
+//  Updated by OABsoftware on 15/06/2026.
 //
 
 //SettingsView
@@ -63,11 +64,11 @@
 "Large" = "Groot";
 "DefaultSize" = "Standaard";
 
-"HiddenApps" = "Hidden apps";
-"HideAppsHint" = "Select apps to hide; they won't appear in the app grid.";
-"NoHiddenApps" = "No hidden apps";
-"Hide" = "Hide";
-"ClearHiddenApps" = "Clear hidden";
-"MoveToFolder" = "Move to Folder";
-"Gesture" = "4-Finger Trackpad Gesture";
-"Glasseffect" = "Enable Glass Effect Background";
+"HiddenApps" = "Verborgen apps";
+"HideAppsHint" = "Selecteer de apps die je wilt verbergen; die verdwijnen uit het overzicht.";
+"NoHiddenApps" = "Geen verborgen apps";
+"Hide" = "Verberg";
+"ClearHiddenApps" = "Wis verborgen apps";
+"MoveToFolder" = "Verplaats naar map";
+"Gesture" = "4-vingerige beweging op trackpad";
+"Glasseffect" = "Schakel glazen achtergrond in";
