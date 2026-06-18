@@ -116,6 +116,10 @@ struct FolderInfo: Identifiable, Equatable {
                 let y = topY - CGFloat(rowTopFirst + 1) * tile - CGFloat(rowTopFirst) * spacing
                 let iconRect = CGRect(x: x, y: y, width: tile, height: tile)
 
+                let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = nsContext
+
                 let iconToDraw: NSImage = {
                     if app.icon.size.width > 0 && app.icon.size.height > 0 {
                         return app.icon
@@ -123,9 +127,9 @@ struct FolderInfo: Identifiable, Equatable {
                         return NSWorkspace.shared.icon(forFile: app.url.path)
                     }
                 }()
-                if let cgImage = iconToDraw.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                    context.draw(cgImage, in: iconRect)
-                }
+                iconToDraw.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+
+                NSGraphicsContext.restoreGraphicsState()
             }
 
             guard let cgImage = context.makeImage() else {
