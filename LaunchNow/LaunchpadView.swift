@@ -505,8 +505,8 @@ struct LaunchpadView: View {
                 if let openFolder = appStore.openFolder {
                     Group {
                         GeometryReader { proxy in
-                            let targetWidth = proxy.size.width * 0.7
-                            let targetHeight = proxy.size.height * 0.7
+                            let targetWidth = max(100, proxy.size.width * 0.7)
+                            let targetHeight = max(100, proxy.size.height * 0.7)
                             let folderId = openFolder.id
                             
                             ZStack {
@@ -2300,30 +2300,40 @@ struct DragPreviewItem: View {
 private struct FolderZoomInModifier: ViewModifier, Animatable {
     var progress: CGFloat
 
+    init(progress: CGFloat) {
+        self.progress = max(0.01, progress)
+    }
+
     var animatableData: CGFloat {
         get { progress }
-        set { progress = max(0, min(1, newValue)) }
+        set { progress = max(0.01, min(1, newValue)) }
     }
 
     func body(content: Content) -> some View {
-        content
-            .scaleEffect(progress)
-            .opacity(min(1, progress / 0.9))
+        let safe = max(0.01, progress)
+        return content
+            .scaleEffect(safe)
+            .opacity(min(1, safe / 0.9))
     }
 }
 
 private struct FolderZoomOutModifier: ViewModifier, Animatable {
     var progress: CGFloat
 
+    init(progress: CGFloat) {
+        self.progress = max(0.01, progress)
+    }
+
     var animatableData: CGFloat {
         get { progress }
-        set { progress = max(0, min(1, newValue)) }
+        set { progress = max(0.01, min(1, newValue)) }
     }
 
     func body(content: Content) -> some View {
-        content
-            .scaleEffect(progress)
-            .opacity(max(0, (progress - 0.1) / 0.9))
+        let safe = max(0.01, progress)
+        return content
+            .scaleEffect(safe)
+            .opacity(max(0, (safe - 0.1) / 0.9))
     }
 }
 
@@ -2331,11 +2341,11 @@ private extension AnyTransition {
     static var scaleWithEarlyOpacity: AnyTransition {
         .asymmetric(
             insertion: .modifier(
-                active: FolderZoomInModifier(progress: 0),
+                active: FolderZoomInModifier(progress: 0.01),
                 identity: FolderZoomInModifier(progress: 1)
             ),
             removal: .modifier(
-                active: FolderZoomOutModifier(progress: 0),
+                active: FolderZoomOutModifier(progress: 0.01),
                 identity: FolderZoomOutModifier(progress: 1)
             )
         )
