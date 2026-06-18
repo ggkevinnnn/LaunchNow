@@ -180,7 +180,13 @@ struct LaunchpadView: View {
         guard let dragging = draggingItem, let pending = pendingDropIndex else { return sourceItems }
         var items = sourceItems
         if let sourceIndex = items.firstIndex(of: dragging) {
-            items.remove(at: sourceIndex)
+            let sourcePage = sourceIndex / config.itemsPerPage
+            let targetPage = pending / config.itemsPerPage
+            if sourcePage == targetPage {
+                items.remove(at: sourceIndex)
+            }
+            // Cross-page: keep source item in place; it will be hidden
+            // by the isDraggingThisTile opacity check during drag
         }
         let insertionIndex = max(0, min(pending, items.count))
         items.insert(.empty("drag_placeholder_\(dragging.id)"), at: insertionIndex)
@@ -328,6 +334,7 @@ struct LaunchpadView: View {
                                                 }
                                             }
                                             .frame(maxHeight: .infinity, alignment: .top)
+                                            .animation(LNAnimations.easeInOut, value: pendingDropIndex)
                                         } else {
                                             Color.clear
                                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
