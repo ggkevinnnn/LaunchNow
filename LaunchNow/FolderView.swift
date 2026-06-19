@@ -285,9 +285,6 @@ struct FolderView: View {
                     .allowsHitTesting(false)
                     .animation(LNAnimations.easeInOut, value: dragPreviewScale)
                     .animation(LNAnimations.easeInOut, value: dragPreviewOpacity)
-                    .if(!isScrolling) { view in
-                        view.drawingGroup(opaque: false, colorMode: .extendedLinear)
-                    }
             }
         }
         .coordinateSpace(name: "folderGrid")
