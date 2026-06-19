@@ -45,6 +45,15 @@ struct FolderView: View {
     @State private var isScrolling: Bool = false
     @State private var lastScrollMark: Date = .distantPast
     private let outOfBoundsDwell: TimeInterval = 0.0
+    // NSEvent 级别拖拽
+    @State private var folderDragEventMonitor: Any? = nil
+    @State private var folderDragMouseDownApp: AppInfo? = nil
+    @State private var folderDragMouseDownLocation: CGPoint = .zero
+    @State private var folderGridOriginInWindow: CGPoint = .zero
+    @State private var folderCurrentContainerSize: CGSize = .zero
+    @State private var folderCurrentColumnWidth: CGFloat = 0
+    @State private var folderCurrentAppHeight: CGFloat = 0
+    @State private var folderCurrentIconSize: CGFloat = 0
     
     let onClose: () -> Void
     let onLaunchApp: (AppInfo) -> Void
@@ -121,6 +130,7 @@ struct FolderView: View {
             folderName = folder.name
             setupKeyHandlers()
             setupInitialSelection()
+            setupFolderDragMonitor()
             // 如果是通过回车键打开的文件夹，则自动启用导航并选中第一项
             if appStore.openFolderActivatedByKeyboard {
                 isKeyboardNavigationActive = true
@@ -150,6 +160,10 @@ struct FolderView: View {
             if let monitor = keyMonitor {
                 NSEvent.removeMonitor(monitor)
                 keyMonitor = nil
+            }
+            if let monitor = folderDragEventMonitor {
+                NSEvent.removeMonitor(monitor)
+                folderDragEventMonitor = nil
             }
         }
     }
@@ -253,21 +267,6 @@ struct FolderView: View {
                 .animation(LNAnimations.easeInOut, value: selectedIndex)
             }
             .scrollIndicators(.hidden)
-            .simultaneousGesture(
-                DragGesture().onChanged { _ in
-                    let now = Date()
-                    if now.timeIntervalSince(lastScrollMark) > 0.05 {
-                        lastScrollMark = now
-                        if !isScrolling { isScrolling = true }
-                    }
-                }
-                .onEnded { _ in
-                    // give a small delay to allow deceleration to finish
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        isScrolling = false
-                    }
-                }
-            )
             .disabled(isEditingName) // 编辑状态下禁用滚动
             .onAppear { columnsCount = desiredColumns }
             .onChange(of: geo.size) {
@@ -292,6 +291,28 @@ struct FolderView: View {
             }
         }
         .coordinateSpace(name: "folderGrid")
+        .overlay(
+            GeometryReader { proxy in
+                let origin = proxy.frame(in: .global).origin
+                Color.clear
+                    .onAppear {
+                        folderGridOriginInWindow = origin
+                        folderCurrentContainerSize = geo.size
+                        folderCurrentColumnWidth = columnWidth
+                        folderCurrentAppHeight = appHeight
+                        folderCurrentIconSize = iconSize
+                    }
+                    .onChange(of: geo.size) { _, _ in
+                        folderCurrentContainerSize = geo.size
+                    }
+                    .onChange(of: origin) { _, newOrigin in
+                        folderGridOriginInWindow = newOrigin
+                    }
+                    .onChange(of: columnWidth) { _, newVal in folderCurrentColumnWidth = newVal }
+                    .onChange(of: appHeight) { _, newVal in folderCurrentAppHeight = newVal }
+                    .onChange(of: iconSize) { _, newVal in folderCurrentIconSize = newVal }
+            }
+        )
         .onPreferenceChange(FolderScrollOffsetPreferenceKey.self) { scrollOffset in
             scrollOffsetY = scrollOffset
             let now = Date()
@@ -390,145 +411,148 @@ extension FolderView {
             .allowsHitTesting(!isDraggingThisTile)
             .contentTransition(.opacity)
             .animation(LNAnimations.smooth, value: isSelected)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 2, coordinateSpace: .named("folderGrid"))
-                    .onChanged { value in
-                        // 在编辑状态下禁用拖拽
-                        if isEditingName { return }
-                        
-                        if draggingApp == nil {
-                            var tx = Transaction(); tx.disablesAnimations = true
-                            withTransaction(tx) {
-                                draggingApp = app
-                                dragSourceApps = folder.apps
-                                dragPreviewOpacity = 1.0
-                                dragPreviewScale = 1.2 // 立即放大，与主网格一致
-                                isSettlingDrop = false
-                            }
-                            isKeyboardNavigationActive = false // 禁用键盘导航
+    }
 
-                            // 让拖拽预览中心与指针位置一致，避免任何偏移
-                            dragPreviewPosition = value.location
-                        }
+    // MARK: - NSEvent 级别拖拽监听
+    private func setupFolderDragMonitor() {
+        if let existing = folderDragEventMonitor { NSEvent.removeMonitor(existing) }
+        folderDragEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
+            switch event.type {
+            case .leftMouseDown:
+                guard !isEditingName, draggingApp == nil else { return event }
+                let localPoint = convertScreenToFolderGrid(NSEvent.mouseLocation)
+                if let idx = indexAt(point: localPoint, containerSize: folderCurrentContainerSize, columnWidth: folderCurrentColumnWidth, appHeight: folderCurrentAppHeight),
+                   folder.apps.indices.contains(idx) {
+                    folderDragMouseDownApp = folder.apps[idx]
+                    folderDragMouseDownLocation = localPoint
+                }
+                return event
 
-                        // 预览跟随指针位置（不引入起始偏移），确保光标与图标中心对齐
-                        dragPreviewPosition = value.location
+            case .leftMouseDragged:
+                guard !isEditingName else { return event }
+                let localPoint = convertScreenToFolderGrid(NSEvent.mouseLocation)
 
-                        // 检测是否拖出文件夹范围并驻留
-                        let isOutside: Bool = (value.location.x < 0 || value.location.y < 0 ||
-                                               value.location.x > containerSize.width ||
-                                               value.location.y > containerSize.height)
-                        let now = Date()
-                        if isOutside {
-                            if outOfBoundsBeganAt == nil { outOfBoundsBeganAt = now }
-                            if !hasHandedOffDrag, let start = outOfBoundsBeganAt, now.timeIntervalSince(start) >= outOfBoundsDwell, let dragging = draggingApp {
-                                // 接力到外层：将应用移出文件夹并关闭文件夹
-                                hasHandedOffDrag = true
-                                pendingDropIndex = nil
-                                appStore.handoffDraggingApp = dragging
-                                appStore.handoffDragScreenLocation = NSEvent.mouseLocation
-                                appStore.removeAppFromFolder(dragging, folder: folder)
-                                // 清理内部拖拽状态并关闭文件夹
-                                draggingApp = nil
-                                dragSourceApps = nil
-                                outOfBoundsBeganAt = nil
-                                onClose()
-                                return
-                            }
-                        } else {
-                            outOfBoundsBeganAt = nil
-                        }
+                if let dragging = draggingApp {
+                    dragPreviewPosition = localPoint
 
-                        if let hoveringIndex = indexAt(point: dragPreviewPosition,
-                                                       containerSize: containerSize,
-                                                       columnWidth: columnWidth,
-                                                       appHeight: appHeight) {
-                            // 将"悬停在最后一个格子"视为插入到末尾，从而推动最后一个向前让位
-                            let count = visualApps.count
-                            if count > 0,
-                               hoveringIndex == count - 1,
-                               let dragging = draggingApp,
-                               dragging != visualApps[hoveringIndex] {
-                                pendingDropIndex = count // 末尾插槽
-                            } else {
-                                // 若命中的是"末尾插槽"（== count），保持为 count；其余为格子索引
-                                pendingDropIndex = hoveringIndex
-                            }
-                        } else {
+                    let isOutside = localPoint.x < 0 || localPoint.y < 0 ||
+                                    localPoint.x > folderCurrentContainerSize.width ||
+                                    localPoint.y > folderCurrentContainerSize.height
+                    let now = Date()
+                    if isOutside {
+                        if outOfBoundsBeganAt == nil { outOfBoundsBeganAt = now }
+                        if !hasHandedOffDrag, let start = outOfBoundsBeganAt, now.timeIntervalSince(start) >= outOfBoundsDwell {
+                            hasHandedOffDrag = true
                             pendingDropIndex = nil
-                        }
-                    }
-                    .onEnded { _ in
-                        // 在编辑状态下不处理拖拽结束
-                        if isEditingName { return }
-                        
-                        guard let dragging = draggingApp else { return }
-                        isSettlingDrop = true
-                        defer {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-                                draggingApp = nil
-                                dragSourceApps = nil
-                                pendingDropIndex = nil
-                                isSettlingDrop = false
-                                dragPreviewOpacity = 1.0
-                            }
-                        }
-
-                        // 若已接力到外层，则不在此处处理落点
-                        if hasHandedOffDrag {
-                            hasHandedOffDrag = false
+                            appStore.handoffDraggingApp = dragging
+                            appStore.handoffDragScreenLocation = NSEvent.mouseLocation
+                            appStore.removeAppFromFolder(dragging, folder: folder)
+                            draggingApp = nil
+                            dragSourceApps = nil
                             outOfBoundsBeganAt = nil
-                            return
+                            onClose()
+                            return nil
                         }
+                    } else {
+                        outOfBoundsBeganAt = nil
+                    }
 
-                        if let finalIndex = pendingDropIndex {
-                            // 视觉吸附位置：直接使用finalIndex，确保准确吸附到目标位置
-                            let dropDisplayIndex = finalIndex
-                            let targetCenter = cellCenter(for: dropDisplayIndex,
-                                                          containerSize: containerSize,
-                                                          columnWidth: columnWidth,
-                                                          appHeight: appHeight)
-                            withAnimation(LNAnimations.easeInOut) {
-                                dragPreviewPosition = targetCenter
-                                dragPreviewScale = 1.0
-                                dragPreviewOpacity = 0.0
-                            }
-                            let sourceApps = dragSourceApps ?? folder.apps
-                            if let from = sourceApps.firstIndex(of: dragging) {
-                                var apps = sourceApps
-                                apps.remove(at: from)
-                                // 与视觉预览完全一致：直接使用悬停索引
-                                let insertIndex = finalIndex
-                                let clamped = min(max(0, insertIndex), apps.count)
-                                apps.insert(dragging, at: clamped)
-                                
-                                // 提交回绑定，驱动真实布局变化（与外部一致）
-                                withAnimation(LNAnimations.easeInOut) {
-                                    appStore.reorderAppsInsideFolder(apps, in: folder)
-                                }
-                                
-                                // 触发落点图标的柔和淡入效果（与外部一致）
-                                lastDroppedAppID = dragging.id
-                                // 短暂延迟后将其清空，使不透明度从 0 -> 1
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                                    lastDroppedAppID = nil
-                                }
-                                
-                                // 文件夹内拖拽结束后也触发压缩，确保主界面的empty项目移动到页面末尾
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    appStore.compactItemsWithinPages()
-                                }
-                            }
+                    if let hoveringIndex = indexAt(point: dragPreviewPosition, containerSize: folderCurrentContainerSize, columnWidth: folderCurrentColumnWidth, appHeight: folderCurrentAppHeight) {
+                        let count = visualApps.count
+                        if count > 0, hoveringIndex == count - 1, dragging != visualApps[hoveringIndex] {
+                            pendingDropIndex = count
                         } else {
-                            // 没有有效的放置位置，回退到原始位置
-                            // 这确保拖拽结束时总有平滑的动画
-                            withAnimation(LNAnimations.easeInOut) {
-                                dragPreviewScale = 1.0
-                                dragPreviewOpacity = 0.0
-                            }
+                            pendingDropIndex = hoveringIndex
+                        }
+                    } else {
+                        pendingDropIndex = nil
+                    }
+                    return nil
+                }
+
+                if let candidate = folderDragMouseDownApp {
+                    let dist = hypot(localPoint.x - folderDragMouseDownLocation.x, localPoint.y - folderDragMouseDownLocation.y)
+                    if dist >= 2.0 {
+                        var tx = Transaction(); tx.disablesAnimations = true
+                        withTransaction(tx) {
+                            draggingApp = candidate
+                            dragSourceApps = folder.apps
+                            dragPreviewOpacity = 1.0
+                            dragPreviewScale = 1.2
+                            isSettlingDrop = false
+                        }
+                        isKeyboardNavigationActive = false
+                        dragPreviewPosition = localPoint
+                        folderDragMouseDownApp = nil
+                    }
+                }
+                return event
+
+            case .leftMouseUp:
+                folderDragMouseDownApp = nil
+                guard !isEditingName, let dragging = draggingApp else { return event }
+                isSettlingDrop = true
+                defer {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                        draggingApp = nil
+                        dragSourceApps = nil
+                        pendingDropIndex = nil
+                        isSettlingDrop = false
+                        dragPreviewOpacity = 1.0
+                    }
+                }
+                if hasHandedOffDrag {
+                    hasHandedOffDrag = false
+                    outOfBoundsBeganAt = nil
+                    return nil
+                }
+                if let finalIndex = pendingDropIndex {
+                    let targetCenter = cellCenter(for: finalIndex, containerSize: folderCurrentContainerSize,
+                                                  columnWidth: folderCurrentColumnWidth, appHeight: folderCurrentAppHeight)
+                    withAnimation(LNAnimations.easeInOut) {
+                        dragPreviewPosition = targetCenter
+                        dragPreviewScale = 1.0
+                        dragPreviewOpacity = 0.0
+                    }
+                    let sourceApps = dragSourceApps ?? folder.apps
+                    if let from = sourceApps.firstIndex(of: dragging) {
+                        var apps = sourceApps
+                        apps.remove(at: from)
+                        let clamped = min(max(0, finalIndex), apps.count)
+                        apps.insert(dragging, at: clamped)
+                        withAnimation(LNAnimations.easeInOut) {
+                            appStore.reorderAppsInsideFolder(apps, in: folder)
+                        }
+                        lastDroppedAppID = dragging.id
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                            lastDroppedAppID = nil
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            appStore.compactItemsWithinPages()
                         }
                     }
-            )
+                } else {
+                    withAnimation(LNAnimations.easeInOut) {
+                        dragPreviewScale = 1.0
+                        dragPreviewOpacity = 0.0
+                    }
+                }
+                return nil
+
+            default:
+                return event
+            }
+        }
+    }
+
+    private func convertScreenToFolderGrid(_ screenPoint: CGPoint) -> CGPoint {
+        guard let window = NSApp.keyWindow else { return screenPoint }
+        let windowPoint = window.convertPoint(fromScreen: screenPoint)
+        let windowHeight = window.contentView?.bounds.height ?? window.frame.size.height
+        let x = windowPoint.x - folderGridOriginInWindow.x
+        let yFromTop = windowHeight - windowPoint.y
+        let y = yFromTop - folderGridOriginInWindow.y
+        return CGPoint(x: x, y: y)
     }
 }
 

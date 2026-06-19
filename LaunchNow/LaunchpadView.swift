@@ -110,7 +110,9 @@ struct LaunchpadView: View {
     @FocusState private var isSearchFieldFocused: Bool
     @Namespace private var reorderNamespace
     @State private var handoffEventMonitor: Any? = nil
-    @State private var dragContinuationMonitor: Any? = nil
+    @State private var dragEventMonitor: Any? = nil
+    @State private var dragMouseDownItem: LaunchpadItem? = nil
+    @State private var dragMouseDownLocation: CGPoint = .zero
     @State private var globalMouseUpMonitor: Any? = nil
     @State private var gridOriginInWindow: CGPoint = .zero
     @State private var currentContainerSize: CGSize = .zero
@@ -592,40 +594,101 @@ struct LaunchpadView: View {
              setupWindowShownObserver()
              setupFocusObserver()
              setupWindowHiddenObserver()
-             // 监听全局鼠标抬起，确保拖拽状态被正确清理（窗口外释放时）
-             if let existing = globalMouseUpMonitor { NSEvent.removeMonitor(existing) }
-             globalMouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { _ in
-                 if handoffEventMonitor != nil {
-                     finalizeHandoffDrag()
-                 } else if draggingItem != nil {
-                     finalizeDragOperation(containerSize: currentContainerSize,
+              // 统一拖拽事件监听（持久化，覆盖完整生命周期）
+              if let existing = dragEventMonitor { NSEvent.removeMonitor(existing) }
+              dragEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
+                   guard !isHandoffDragging, !isFolderOpen else { return event }
+                  switch event.type {
+                  case .leftMouseDown:
+                      guard draggingItem == nil else { return event }
+                      let localPoint = convertScreenToGrid(NSEvent.mouseLocation)
+                      if let idx = indexAt(point: localPoint, in: currentContainerSize,
+                                           pageIndex: appStore.currentPage,
                                            columnWidth: currentColumnWidth,
-                                           appHeight: currentAppHeight,
-                                           iconSize: currentIconSize)
-                 }
-                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                     if draggingItem != nil {
-                         draggingItem = nil
-                         dragSourceItems = nil
-                         pendingDropIndex = nil
-                         appStore.isDragCreatingFolder = false
-                         appStore.folderCreationTarget = nil
-                         isSettlingDrop = false
-                         resetDragPagingState()
-                         if let monitor = dragContinuationMonitor { NSEvent.removeMonitor(monitor); dragContinuationMonitor = nil }
-                         clampSelection()
-                     }
-                 }
-              }
-              // 监听按键修饰符变化（Option 模式）
-              if let existing = flagsMonitor { NSEvent.removeMonitor(existing) }
-              flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { event in
-                  let isOptionDown = event.modifierFlags.contains(.option)
-                  if appStore.isOptionFolderMode != isOptionDown {
-                      appStore.isOptionFolderMode = isOptionDown
+                                           appHeight: currentAppHeight),
+                         currentItems.indices.contains(idx) {
+                          let item = currentItems[idx]
+                          if case .empty = item { /* 空格子不拖拽 */ } else {
+                              dragMouseDownItem = item
+                              dragMouseDownLocation = localPoint
+                          }
+                      }
+                      return event
+                  case .leftMouseDragged:
+                      if let dragging = draggingItem {
+                          let localPoint = convertScreenToGrid(NSEvent.mouseLocation)
+                          applyDragUpdate(at: localPoint, containerSize: currentContainerSize,
+                                          columnWidth: currentColumnWidth, appHeight: currentAppHeight,
+                                          iconSize: currentIconSize)
+                          return nil
+                      }
+                      if let candidate = dragMouseDownItem {
+                          let localPoint = convertScreenToGrid(NSEvent.mouseLocation)
+                          let dist = hypot(localPoint.x - dragMouseDownLocation.x, localPoint.y - dragMouseDownLocation.y)
+                          if dist >= 2.0 {
+                              var tx = Transaction(); tx.disablesAnimations = true
+                              withTransaction(tx) {
+                                  draggingItem = candidate
+                                  dragSourceItems = appStore.items
+                              }
+                              dragOriginalIndex = appStore.items.firstIndex(of: candidate) ?? filteredItems.firstIndex(of: candidate)
+                              isKeyboardNavigationActive = false
+                              appStore.isDragCreatingFolder = false
+                              appStore.folderCreationTarget = nil
+                              dragPreviewPosition = localPoint
+                              dragMouseDownItem = nil
+                              applyDragUpdate(at: localPoint, containerSize: currentContainerSize,
+                                              columnWidth: currentColumnWidth, appHeight: currentAppHeight,
+                                              iconSize: currentIconSize)
+                          }
+                      }
+                      return event
+                  case .leftMouseUp:
+                      dragMouseDownItem = nil
+                      if let _ = draggingItem {
+                          finalizeDragOperation(containerSize: currentContainerSize,
+                                                columnWidth: currentColumnWidth,
+                                                appHeight: currentAppHeight,
+                                                iconSize: currentIconSize)
+                      }
+                      return event
+                  default:
+                      return event
                   }
-                  return event
               }
+              // 监听全局鼠标抬起，确保拖拽状态被正确清理（窗口外释放时）
+              if let existing = globalMouseUpMonitor { NSEvent.removeMonitor(existing) }
+              globalMouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { _ in
+                  if handoffEventMonitor != nil {
+                      finalizeHandoffDrag()
+                  } else if draggingItem != nil {
+                      finalizeDragOperation(containerSize: currentContainerSize,
+                                            columnWidth: currentColumnWidth,
+                                            appHeight: currentAppHeight,
+                                            iconSize: currentIconSize)
+                  }
+                  DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                      if draggingItem != nil {
+                          draggingItem = nil
+                          dragSourceItems = nil
+                          pendingDropIndex = nil
+                          appStore.isDragCreatingFolder = false
+                          appStore.folderCreationTarget = nil
+                          isSettlingDrop = false
+                          resetDragPagingState()
+                          clampSelection()
+                      }
+                  }
+               }
+               // 监听按键修饰符变化（Option 模式）
+               if let existing = flagsMonitor { NSEvent.removeMonitor(existing) }
+               flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { event in
+                   let isOptionDown = event.modifierFlags.contains(.option)
+                   if appStore.isOptionFolderMode != isOptionDown {
+                       appStore.isOptionFolderMode = isOptionDown
+                   }
+                   return event
+               }
               isKeyboardNavigationActive = false
               clampSelection()
               
@@ -633,7 +696,7 @@ struct LaunchpadView: View {
               checkCacheStatus()
           }
         .onDisappear {
-            [keyMonitor, handoffEventMonitor, dragContinuationMonitor].forEach { monitor in
+            [keyMonitor, handoffEventMonitor, dragEventMonitor].forEach { monitor in
                 if let monitor = monitor { NSEvent.removeMonitor(monitor) }
             }
             if let monitor = globalMouseUpMonitor { NSEvent.removeMonitor(monitor) }
@@ -644,7 +707,7 @@ struct LaunchpadView: View {
             flagsMonitor = nil
             keyMonitor = nil
             handoffEventMonitor = nil
-            dragContinuationMonitor = nil
+            dragEventMonitor = nil
             globalMouseUpMonitor = nil
             windowObserver = nil
             focusObserver = nil
@@ -776,51 +839,9 @@ struct LaunchpadView: View {
         return CGPoint(x: x, y: y)
     }
 
-    private func startDragContinuationMonitorIfNeeded() {
-        guard dragContinuationMonitor == nil else { return }
-        dragContinuationMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp]) { event in
-            guard draggingItem != nil, !isHandoffDragging else { return event }
-            switch event.type {
-            case .leftMouseDragged:
-                let localPoint = convertScreenToGrid(NSEvent.mouseLocation)
-                applyDragUpdate(at: localPoint,
-                                containerSize: currentContainerSize,
-                                columnWidth: currentColumnWidth,
-                                appHeight: currentAppHeight,
-                                iconSize: currentIconSize)
-                return event
-            case .leftMouseUp:
-                finalizeDragOperation(containerSize: currentContainerSize,
-                                      columnWidth: currentColumnWidth,
-                                      appHeight: currentAppHeight,
-                                      iconSize: currentIconSize)
-                return event
-            default:
-                return event
-            }
-        }
-    }
-
-    private func stopDragContinuationMonitor() {
-        if let monitor = dragContinuationMonitor {
-            NSEvent.removeMonitor(monitor)
-            dragContinuationMonitor = nil
-        }
-    }
-
-    private func handleHandoffDragMove(to localPoint: CGPoint) {
-        // 复用与普通拖拽完全一致的更新逻辑
-        applyDragUpdate(at: localPoint,
-                        containerSize: currentContainerSize,
-                        columnWidth: currentColumnWidth,
-                        appHeight: currentAppHeight,
-                        iconSize: currentIconSize)
-    }
-
     private func finalizeHandoffDrag() {
         guard !isSettlingDrop else { return }
         guard draggingItem != nil else { return }
-        stopDragContinuationMonitor()
         // 在接力拖拽模式下，落点时再计算目标索引，过程中不展示吸附
         if isHandoffDragging && pendingDropIndex == nil {
             if let idx = indexAt(point: dragPreviewPosition,
@@ -1248,18 +1269,6 @@ extension LaunchpadView {
                     .opacity((isDraggingThisTile && !isSettlingDrop) ? 0 : 1)
                     .animation(LNAnimations.easeInOut, value: isSettlingDrop)
                     .allowsHitTesting(!isDraggingThisTile)
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 2, coordinateSpace: .named("grid"))
-                            .onChanged { value in
-                                handleDragChange(value, item: item, in: containerSize, columnWidth: columnWidth, appHeight: appHeight, iconSize: iconSize)
-                            }
-                            .onEnded { _ in
-                                guard draggingItem != nil else { return }
-
-                                // Finalize drag operation
-                                finalizeDragOperation(containerSize: containerSize, columnWidth: columnWidth, appHeight: appHeight, iconSize: iconSize)
-                            }
-                    )
             } else {
                 withMatchedGeometry(base, id: item.id)
                     // Fade in newly dropped item
@@ -1722,35 +1731,10 @@ extension LaunchpadView {
         }
     }
     
-    // MARK: - 简化的拖拽处理函数
-    private func handleDragChange(_ value: DragGesture.Value, item: LaunchpadItem, in containerSize: CGSize, columnWidth: CGFloat, appHeight: CGFloat, iconSize: CGFloat) {
-        // 初始化拖拽
-        if draggingItem == nil {
-            resetDragPagingState()
-            var tx = Transaction(); tx.disablesAnimations = true
-            withTransaction(tx) {
-                draggingItem = item
-                dragSourceItems = appStore.items
-            }
-            dragOriginalIndex = appStore.items.firstIndex(of: item) ?? filteredItems.firstIndex(of: item)
-            isKeyboardNavigationActive = false
-            appStore.isDragCreatingFolder = false
-            appStore.folderCreationTarget = nil
-            dragPreviewPosition = value.location
-            startDragContinuationMonitorIfNeeded()
-        }
-        applyDragUpdate(at: value.location,
-                        containerSize: containerSize,
-                        columnWidth: columnWidth,
-                        appHeight: appHeight,
-                        iconSize: iconSize)
-    }
-
     // 统一的拖拽结束处理逻辑（普通拖拽与接力拖拽共用）
     private func finalizeDragOperation(containerSize: CGSize, columnWidth: CGFloat, appHeight: CGFloat, iconSize: CGFloat) {
         guard !isSettlingDrop else { return }
         guard let dragging = draggingItem else { return }
-        stopDragContinuationMonitor()
         isSettlingDrop = true
         
         // Option 模式：如果没有成功创建/加入文件夹，则撤销放置并回弹
