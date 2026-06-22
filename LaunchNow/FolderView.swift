@@ -44,6 +44,9 @@ struct FolderView: View {
     @State private var lastDroppedAppID: String? = nil
     @State private var isScrolling: Bool = false
     @State private var lastScrollMark: Date = .distantPast
+    @State private var isDraggingActive: Bool = false
+    private let autoScrollZoneSize: CGFloat = 40
+    private let autoScrollStep: CGFloat = 6
     private let outOfBoundsDwell: TimeInterval = 0.0
     // NSEvent 级别拖拽
     @State private var folderDragEventMonitor: Any? = nil
@@ -54,6 +57,7 @@ struct FolderView: View {
     @State private var folderCurrentColumnWidth: CGFloat = 0
     @State private var folderCurrentAppHeight: CGFloat = 0
     @State private var folderCurrentIconSize: CGFloat = 0
+    @State private var folderClipView: NSClipView? = nil
     
     let onClose: () -> Void
     let onLaunchApp: (AppInfo) -> Void
@@ -131,6 +135,7 @@ struct FolderView: View {
             setupKeyHandlers()
             setupInitialSelection()
             setupFolderDragMonitor()
+            cacheFolderClipView()
             // 如果是通过回车键打开的文件夹，则自动启用导航并选中第一项
             if appStore.openFolderActivatedByKeyboard {
                 isKeyboardNavigationActive = true
@@ -311,13 +316,13 @@ struct FolderView: View {
             }
         )
         .onPreferenceChange(FolderScrollOffsetPreferenceKey.self) { scrollOffset in
+            guard !isDraggingActive else { return }
             scrollOffsetY = scrollOffset
             let now = Date()
             if now.timeIntervalSince(lastScrollMark) > 0.05 {
                 lastScrollMark = now
                 if !isScrolling { isScrolling = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                    // stop if no further updates
                     if Date().timeIntervalSince(lastScrollMark) > 0.1 {
                         isScrolling = false
                     }
@@ -417,7 +422,8 @@ extension FolderView {
             switch event.type {
             case .leftMouseDown:
                 guard !isEditingName, draggingApp == nil else { return event }
-                let localPoint = convertScreenToFolderGrid(NSEvent.mouseLocation)
+                refreshScrollOffset()
+                let localPoint = convertWindowToFolderGrid(event.locationInWindow)
                 if let idx = indexAt(point: localPoint, containerSize: folderCurrentContainerSize, columnWidth: folderCurrentColumnWidth, appHeight: folderCurrentAppHeight),
                    folder.apps.indices.contains(idx) {
                     folderDragMouseDownApp = folder.apps[idx]
@@ -427,10 +433,35 @@ extension FolderView {
 
             case .leftMouseDragged:
                 guard !isEditingName else { return event }
-                let localPoint = convertScreenToFolderGrid(NSEvent.mouseLocation)
+                refreshScrollOffset()
+                let localPoint = convertWindowToFolderGrid(event.locationInWindow)
 
                 if let dragging = draggingApp {
                     dragPreviewPosition = localPoint
+
+                    // 自动滚动：拖拽到网格靠近顶部或底部边缘时触发
+                    let scrollZoneTop = autoScrollZoneSize
+                    let scrollZoneBottom = folderCurrentContainerSize.height - autoScrollZoneSize
+                    if localPoint.y >= 0, localPoint.y <= folderCurrentContainerSize.height,
+                       localPoint.y < scrollZoneTop || localPoint.y > scrollZoneBottom {
+                        if let clipView = folderClipView ?? findFolderClipView(in: NSApp.keyWindow?.contentView) {
+                            if folderClipView == nil { folderClipView = clipView }
+                            let direction: CGFloat = localPoint.y < scrollZoneTop ? -1 : 1
+                            // 计算可滚动范围
+                            let appCount = (dragSourceApps ?? folder.apps).count
+                            let totalRows = max(1, (appCount + columnsCount - 1) / columnsCount)
+                            let contentHeight = gridPadding * 2 + CGFloat(totalRows) * folderCurrentAppHeight + CGFloat(max(0, totalRows - 1)) * spacing
+                            let maxScrollOffset = max(0, contentHeight - folderCurrentContainerSize.height)
+                            if maxScrollOffset > 0 {
+                                var newOrigin = clipView.bounds.origin
+                                newOrigin.y = max(0, min(maxScrollOffset, newOrigin.y + direction * autoScrollStep))
+                                if newOrigin.y != clipView.bounds.origin.y {
+                                    clipView.bounds.origin = newOrigin
+                                    scrollOffsetY = newOrigin.y
+                                }
+                            }
+                        }
+                    }
 
                     let isOutside = localPoint.x < 0 || localPoint.y < 0 ||
                                     localPoint.x > folderCurrentContainerSize.width ||
@@ -442,7 +473,11 @@ extension FolderView {
                             hasHandedOffDrag = true
                             pendingDropIndex = nil
                             appStore.handoffDraggingApp = dragging
-                            appStore.handoffDragScreenLocation = NSEvent.mouseLocation
+                            if let window = NSApp.keyWindow {
+                                appStore.handoffDragScreenLocation = window.convertPoint(toScreen: event.locationInWindow)
+                            } else {
+                                appStore.handoffDragScreenLocation = NSEvent.mouseLocation
+                            }
                             appStore.removeAppFromFolder(dragging, folder: folder)
                             draggingApp = nil
                             dragSourceApps = nil
@@ -454,6 +489,7 @@ extension FolderView {
                         outOfBoundsBeganAt = nil
                     }
 
+                    refreshScrollOffset()
                     if let hoveringIndex = indexAt(point: dragPreviewPosition, containerSize: folderCurrentContainerSize, columnWidth: folderCurrentColumnWidth, appHeight: folderCurrentAppHeight) {
                         let count = visualApps.count
                         if count > 0, hoveringIndex == count - 1, dragging != visualApps[hoveringIndex] {
@@ -478,6 +514,7 @@ extension FolderView {
                             dragPreviewScale = 1.2
                             isSettlingDrop = false
                         }
+                        isDraggingActive = true
                         isKeyboardNavigationActive = false
                         dragPreviewPosition = localPoint
                         folderDragMouseDownApp = nil
@@ -486,6 +523,7 @@ extension FolderView {
                 return event
 
             case .leftMouseUp:
+                isDraggingActive = false
                 folderDragMouseDownApp = nil
                 guard !isEditingName, let dragging = draggingApp else { return event }
                 isSettlingDrop = true
@@ -550,6 +588,39 @@ extension FolderView {
         let yFromTop = windowHeight - windowPoint.y
         let y = yFromTop - folderGridOriginInWindow.y
         return CGPoint(x: x, y: y)
+    }
+
+    private func convertWindowToFolderGrid(_ windowPoint: CGPoint) -> CGPoint {
+        guard let window = NSApp.keyWindow else { return .zero }
+        let windowHeight = window.contentView?.bounds.height ?? window.frame.size.height
+        let yFromTop = windowHeight - windowPoint.y
+        return CGPoint(x: windowPoint.x - folderGridOriginInWindow.x,
+                       y: yFromTop - folderGridOriginInWindow.y)
+    }
+
+    private func refreshScrollOffset() {
+        guard let clipView = folderClipView ?? findFolderClipView(in: NSApp.keyWindow?.contentView) else { return }
+        if folderClipView == nil { folderClipView = clipView }
+        scrollOffsetY = clipView.bounds.origin.y
+    }
+
+    private func cacheFolderClipView() {
+        DispatchQueue.main.async {
+            self.folderClipView = self.findFolderClipView(in: NSApp.keyWindow?.contentView)
+        }
+    }
+
+    private func findFolderClipView(in view: NSView?) -> NSClipView? {
+        guard let view = view else { return nil }
+        if let scrollView = view as? NSScrollView {
+            return scrollView.contentView
+        }
+        for subview in view.subviews {
+            if let found = findFolderClipView(in: subview) {
+                return found
+            }
+        }
+        return nil
     }
 }
 
