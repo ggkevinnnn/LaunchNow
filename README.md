@@ -7,7 +7,6 @@
 <p align="center">
   <a href="https://github.com/ggkevinnnn/LaunchNow/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ggkevinnnn/LaunchNow" alt="License" /></a>
   <a href="#"><img src="https://img.shields.io/badge/language-Swift-orange.svg" alt="Language" /></a>
-  <a href="https://github.com/ggkevinnnn/LaunchNow/releases/latest"><img src="https://img.shields.io/github/v/release/ggkevinnnn/LaunchNow" alt="GitHub Release" /></a>
   <a href="https://github.com/ggkevinnnn/LaunchNow/releases"><img src="https://img.shields.io/github/downloads/ggkevinnnn/LaunchNow/total" alt="Downloads" /></a>
 </p>
 
