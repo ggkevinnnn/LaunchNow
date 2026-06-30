@@ -62,6 +62,19 @@ struct SettingsView: View {
                         .toggleStyle(.switch)
                 }
                 HStack {
+                    Text(NSLocalizedString("MaterialOpacity", comment: "Material opacity"))
+                    VStack {
+                        Slider(value: $appStore.materialOpacity, in: 0.1...1.0)
+                        HStack {
+                            Text(NSLocalizedString("Low", comment: "Low"))
+                                .font(.footnote)
+                            Spacer()
+                            Text(NSLocalizedString("High", comment: "High"))
+                                .font(.footnote)
+                        }
+                    }
+                }
+                HStack {
                     Text(NSLocalizedString("ScrollSensitivity", comment: "Scrolling sensitivity"))
                     VStack {
                         Slider(value: $appStore.scrollSensitivity, in: 0.01...0.99)

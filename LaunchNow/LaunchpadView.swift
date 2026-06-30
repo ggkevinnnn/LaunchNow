@@ -462,7 +462,7 @@ struct LaunchpadView: View {
         .padding()
         .background {
             if appStore.isGlasseffectEnabled {
-                Color.clear.background(.ultraThinMaterial.opacity(0.72), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
+                Color.clear.background(.ultraThinMaterial.opacity(appStore.materialOpacity), in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
                 Color.clear.glassEffect(.clear, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
             } else {
                 Color.clear.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: appStore.isFullscreenMode ? 0 : 30))
@@ -597,7 +597,7 @@ struct LaunchpadView: View {
               // 统一拖拽事件监听（持久化，覆盖完整生命周期）
               if let existing = dragEventMonitor { NSEvent.removeMonitor(existing) }
               dragEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { event in
-                   guard !isHandoffDragging, !isFolderOpen else { return event }
+                    guard !isHandoffDragging, !isFolderOpen, !appStore.isSetting else { return event }
                   switch event.type {
                   case .leftMouseDown:
                       guard draggingItem == nil else { return event }
