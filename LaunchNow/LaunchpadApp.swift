@@ -100,21 +100,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func bindGestureSettings() {
         appStore.$isGlobalPinchEnabled
-            .removeDuplicates()
-            .sink { [weak self] isEnabled in
+            .combineLatest(appStore.$isFullscreenMode)
+            .removeDuplicates { prev, curr in prev.0 == curr.0 && prev.1 == curr.1 }
+            .sink { [weak self] isEnabled, isFullscreen in
                 guard let self else { return }
                 if isEnabled {
-                    GlobalPinchGestureMonitor.shared.start(
-                        promptForAccessibility: true,
-                        onPinchIn: { self.registerGestureCommit(.show) },
-                        onPinchOut: { self.registerGestureCommit(.hide) },
-                        onProgress: { direction, progress in
-                            self.applyGestureProgress(direction: direction, progress: progress)
-                        },
-                        onGestureEnded: {
-                            self.finishGesturePreview()
-                        }
-                    )
+                    if isFullscreen {
+                        GlobalPinchGestureMonitor.shared.start(
+                            promptForAccessibility: true,
+                            onPinchIn: { self.registerGestureCommit(.show) },
+                            onPinchOut: { self.registerGestureCommit(.hide) },
+                            onProgress: { direction, progress in
+                                self.applyGestureProgress(direction: direction, progress: progress)
+                            },
+                            onGestureEnded: {
+                                self.finishGesturePreview()
+                            }
+                        )
+                    } else {
+                        GlobalPinchGestureMonitor.shared.start(
+                            promptForAccessibility: true,
+                            onPinchIn: { self.requestShowWindow() },
+                            onPinchOut: { self.requestHideWindow() },
+                            onProgress: { _, _ in },
+                            onGestureEnded: { }
+                        )
+                    }
                 } else {
                     GlobalPinchGestureMonitor.shared.stop()
                     self.cancelGesturePreview()
@@ -308,26 +319,40 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         resetGesturePreviewState()
 
         let targetRect = targetRectForCurrentScreen()
-        gesturePreviewTargetRect = targetRect
-        gesturePreviewMode = .showing
-        gesturePreviewMadeVisible = true
-        gesturePreviewActivated = true
 
         window.setFrame(targetRect, display: true)
         applyCornerRadius()
-        applyPreviewVisual(scale: previewScale(for: 0), alpha: previewAlpha(for: 0))
-        window.alphaValue = 1
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.collectionBehavior = [.transient, .canJoinAllApplications, .fullScreenAuxiliary, .ignoresCycle]
         window.orderFrontRegardless()
         NotificationCenter.default.post(name: .launchpadFocusSearchField, object: nil)
 
-        animatePreviewVisual(toScale: previewScale(for: 1), alpha: previewAlpha(for: 1)) { [weak self] in
-            guard let self else { return }
-            self.isAnimatingWindowTransition = false
-            self.finalizeShownState()
-            completion?()
+        if appStore.isFullscreenMode {
+            gesturePreviewTargetRect = targetRect
+            gesturePreviewMode = .showing
+            gesturePreviewMadeVisible = true
+            gesturePreviewActivated = true
+            applyPreviewVisual(scale: previewScale(for: 0), alpha: previewAlpha(for: 0))
+            animatePreviewVisual(toScale: previewScale(for: 1), alpha: previewAlpha(for: 1)) { [weak self] in
+                guard let self else { return }
+                self.isAnimatingWindowTransition = false
+                self.finalizeShownState()
+                completion?()
+            }
+        } else {
+            window.alphaValue = 0
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.2
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                context.allowsImplicitAnimation = true
+                window.animator().alphaValue = 1
+            } completionHandler: { [weak self] in
+                guard let self else { return }
+                self.isAnimatingWindowTransition = false
+                self.finalizeShownState()
+                completion?()
+            }
         }
     }
 
@@ -336,21 +361,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         resetGesturePreviewState()
 
         let targetRect = targetRectForCurrentScreen()
-        gesturePreviewTargetRect = targetRect
-        gesturePreviewMode = .hiding
-        gesturePreviewActivated = true
 
         if window.frame != targetRect {
             window.setFrame(targetRect, display: true)
         }
         applyCornerRadius()
-        applyPreviewVisual(scale: previewScale(for: 1), alpha: previewAlpha(for: 1))
 
-        animatePreviewVisual(toScale: previewScale(for: 0), alpha: previewAlpha(for: 0)) { [weak self] in
-            guard let self else { return }
-            self.isAnimatingWindowTransition = false
-            self.finalizeHiddenState()
-            completion?()
+        if appStore.isFullscreenMode {
+            gesturePreviewTargetRect = targetRect
+            gesturePreviewMode = .hiding
+            gesturePreviewActivated = true
+            applyPreviewVisual(scale: previewScale(for: 1), alpha: previewAlpha(for: 1))
+            animatePreviewVisual(toScale: previewScale(for: 0), alpha: previewAlpha(for: 0)) { [weak self] in
+                guard let self else { return }
+                self.isAnimatingWindowTransition = false
+                self.finalizeHiddenState()
+                completion?()
+            }
+        } else {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.2
+                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                context.allowsImplicitAnimation = true
+                window.animator().alphaValue = 0
+            } completionHandler: { [weak self] in
+                guard let self else { return }
+                self.isAnimatingWindowTransition = false
+                self.finalizeHiddenState()
+                completion?()
+            }
         }
     }
     
@@ -374,8 +413,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if isFullscreen {
             savedWindowFrame = nil
         }
+        // 切换模式时重置手势状态和 layer 状态，避免模式间动画污染
+        resetGesturePreviewState()
+        if !isFullscreen {
+            resetContentLayer()
+        }
         applyCornerRadius()
-        applyPreviewVisual(scale: 1, alpha: window.alphaValue)
+        if isFullscreen {
+            applyPreviewVisual(scale: 1, alpha: window.alphaValue)
+        }
     }
     
     private func applyCornerRadius() {
@@ -492,7 +538,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         gestureSearchFocusAssigned = false
     }
 
+    private func resetContentLayer() {
+        guard let contentLayer = window?.contentView?.layer else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        contentLayer.transform = CATransform3DIdentity
+        contentLayer.opacity = 1
+        CATransaction.commit()
+    }
+
     private func animatePreviewVisual(toScale scale: CGFloat, alpha: CGFloat, completion: (() -> Void)?) {
+        guard appStore.isFullscreenMode else {
+            completion?()
+            return
+        }
         guard let contentLayer = window?.contentView?.layer else {
             completion?()
             return
@@ -546,6 +605,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func applyPreviewVisual(scale: CGFloat, alpha: CGFloat) {
+        guard appStore.isFullscreenMode else { return }
         guard let contentLayer = window?.contentView?.layer else { return }
         configurePreviewLayerGeometry()
         CATransaction.begin()
