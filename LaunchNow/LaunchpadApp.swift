@@ -341,13 +341,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 completion?()
             }
         } else {
-            window.alphaValue = 0
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.2
-                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                context.allowsImplicitAnimation = true
-                window.animator().alphaValue = 1
-            } completionHandler: { [weak self] in
+            guard let layer = window.contentView?.layer else {
+                self.isAnimatingWindowTransition = false
+                self.finalizeShownState()
+                completion?()
+                return
+            }
+            configurePreviewLayerGeometry()
+            animateLayerOpacity(layer, from: 0, to: 1, duration: 0.15, timing: .easeOut) { [weak self] in
                 guard let self else { return }
                 self.isAnimatingWindowTransition = false
                 self.finalizeShownState()
@@ -379,12 +380,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 completion?()
             }
         } else {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.2
-                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-                context.allowsImplicitAnimation = true
-                window.animator().alphaValue = 0
-            } completionHandler: { [weak self] in
+            guard let layer = window.contentView?.layer else {
+                self.isAnimatingWindowTransition = false
+                self.finalizeHiddenState()
+                completion?()
+                return
+            }
+            configurePreviewLayerGeometry()
+            animateLayerOpacity(layer, from: 1, to: 0, duration: 0.15, timing: .easeIn) { [weak self] in
                 guard let self else { return }
                 self.isAnimatingWindowTransition = false
                 self.finalizeHiddenState()
@@ -544,6 +547,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         CATransaction.setDisableActions(true)
         contentLayer.transform = CATransform3DIdentity
         contentLayer.opacity = 1
+        CATransaction.commit()
+    }
+
+    private func animateLayerOpacity(_ layer: CALayer, from: Float, to: Float, duration: CFTimeInterval, timing name: CAMediaTimingFunctionName, completion: (() -> Void)?) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        CATransaction.setCompletionBlock(completion)
+        let animation = CABasicAnimation(keyPath: "opacity")
+        animation.fromValue = from
+        animation.toValue = to
+        animation.duration = duration
+        animation.timingFunction = CAMediaTimingFunction(name: name)
+        layer.opacity = to
+        layer.add(animation, forKey: "launchnow.opacity")
         CATransaction.commit()
     }
 
