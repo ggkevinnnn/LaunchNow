@@ -54,7 +54,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var gesturePreviewActivated = false
     private var gestureSearchFocusAssigned = false
     private var isAnimatingWindowTransition = false
-    private var savedWindowFrame: NSRect? = nil
+    private static let windowFrameDefaultsKey = "savedWindowFrame"
+    
+    private var savedWindowFrame: NSRect? {
+        get {
+            guard let dict = UserDefaults.standard.dictionary(forKey: Self.windowFrameDefaultsKey) else { return nil }
+            guard let x = dict["x"] as? CGFloat,
+                  let y = dict["y"] as? CGFloat,
+                  let w = dict["width"] as? CGFloat,
+                  let h = dict["height"] as? CGFloat else { return nil }
+            return NSRect(x: x, y: y, width: w, height: h)
+        }
+        set {
+            guard let rect = newValue else {
+                UserDefaults.standard.removeObject(forKey: Self.windowFrameDefaultsKey)
+                return
+            }
+            let dict: [String: CGFloat] = [
+                "x": rect.origin.x,
+                "y": rect.origin.y,
+                "width": rect.width,
+                "height": rect.height
+            ]
+            UserDefaults.standard.set(dict, forKey: Self.windowFrameDefaultsKey)
+        }
+    }
     private var isRecentering: Bool = false
     private let showStartScale: CGFloat = 1.4
     private let previewActivationProgress: CGFloat = 0.08
@@ -101,7 +125,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     
     private func setupWindow() {
         guard let screen = NSScreen.main else { return }
-        let rect = calculateContentRect(for: screen)
+        
+        // 非全屏模式下：加载上次保存的窗口尺寸；全屏模式使用屏幕尺寸
+        let rect: NSRect
+        if !appStore.isFullscreenMode, let saved = savedWindowFrame {
+            let visibleFrame = screen.visibleFrame
+            var adjustedFrame = saved
+            // 确保窗口尺寸不小于最小值
+            adjustedFrame.size.width = max(adjustedFrame.width, minimumContentSize.width)
+            adjustedFrame.size.height = max(adjustedFrame.height, minimumContentSize.height * 3/4)
+            // 验证保存的 frame 仍在当前屏幕可见区域内
+            if adjustedFrame.maxX > visibleFrame.maxX {
+                adjustedFrame.origin.x = visibleFrame.maxX - adjustedFrame.width
+            }
+            if adjustedFrame.minX < visibleFrame.minX {
+                adjustedFrame.origin.x = visibleFrame.minX
+            }
+            if adjustedFrame.maxY > visibleFrame.maxY {
+                adjustedFrame.origin.y = visibleFrame.maxY - adjustedFrame.height
+            }
+            if adjustedFrame.minY < visibleFrame.minY {
+                adjustedFrame.origin.y = visibleFrame.minY
+            }
+            rect = adjustedFrame
+        } else {
+            rect = calculateContentRect(for: screen)
+        }
         
         // 非全屏模式下添加 .resizable 允许边缘拖拽调整大小
         let styleMask: NSWindow.StyleMask = appStore.isFullscreenMode
@@ -149,9 +198,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         applyPreviewVisual(scale: 1, alpha: 1)
         window?.alphaValue = 1
         
-        // 设置等比缩放的参考内容尺寸（非全屏模式下的初始窗口大小）
+        // 设置等比缩放的参考内容尺寸（非全屏模式下使用实际窗口大小，而非计算默认值）
         if !appStore.isFullscreenMode {
-            let refSize = calculateContentRect(for: screen).size
+            let refSize = rect.size
             appStore.referenceContentSize = refSize
         }
     }
@@ -234,6 +283,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard window.isVisible else {
             completion?()
             return
+        }
+        // 在隐藏前立即保存窗口 frame（确保任何隐藏路径都能记住尺寸）
+        if !appStore.isFullscreenMode {
+            savedWindowFrame = window.frame
         }
         performWindowTransition(.hide, completion: completion)
     }
@@ -414,6 +467,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func cancelGesturePreview() {
         guard let window else { return }
+        // 手势取消时隐藏窗口，也需要保存 frame
+        if !appStore.isFullscreenMode, window.isVisible {
+            savedWindowFrame = window.frame
+        }
         if let targetRect = gesturePreviewTargetRect {
             window.setFrame(targetRect, display: true)
             applyPreviewVisual(scale: 1, alpha: 1)
@@ -473,6 +530,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func rollbackToHidden(window: NSWindow) {
         guard gesturePreviewMadeVisible else { return }
+        // 回滚到隐藏状态时保存 frame
+        if !appStore.isFullscreenMode {
+            savedWindowFrame = window.frame
+        }
         animatePreviewVisual(toScale: previewScale(for: 0), alpha: previewAlpha(for: 0)) {
             window.orderOut(nil)
             self.applyPreviewVisual(scale: 1, alpha: 1)
@@ -623,11 +684,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     
     func windowDidResize(_ notification: Notification) {
-        // 非全屏模式下，缩放后重新居中窗口
-        guard !appStore.isFullscreenMode, !isRecentering, !isAnimatingWindowTransition else { return }
+        guard !appStore.isFullscreenMode, !isAnimatingWindowTransition else { return }
         guard let window = notification.object as? NSWindow, window.isVisible else { return }
         guard let screen = window.screen ?? getCurrentActiveScreen() else { return }
         
+        // 用户手动调整窗口尺寸后，立即保存 frame（记住用户调整的大小）
+        if !isRecentering {
+            savedWindowFrame = window.frame
+        }
+        
+        // 缩放后重新居中窗口
+        guard !isRecentering else { return }
         isRecentering = true
         defer { isRecentering = false }
         
@@ -659,6 +726,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             requestShowWindow()
         }
         return false
+    }
+    
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // 应用退出前保存当前窗口尺寸
+        if let window = window, !appStore.isFullscreenMode, window.isVisible {
+            savedWindowFrame = window.frame
+        }
+        return .terminateNow
     }
     
 }
