@@ -348,7 +348,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 return
             }
             configurePreviewLayerGeometry()
-            animateLayerOpacity(layer, from: 0, to: 1, duration: 0.15, timing: .easeOut) { [weak self] in
+            animateLayerOpacity(layer, from: 0, to: 1, duration: 0.15, timing: .default) { [weak self] in
                 guard let self else { return }
                 self.isAnimatingWindowTransition = false
                 self.finalizeShownState()
@@ -387,7 +387,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 return
             }
             configurePreviewLayerGeometry()
-            animateLayerOpacity(layer, from: 1, to: 0, duration: 0.15, timing: .easeIn) { [weak self] in
+            animateLayerOpacity(layer, from: 1, to: 0, duration: 0.15, timing: .default) { [weak self] in
                 guard let self else { return }
                 self.isAnimatingWindowTransition = false
                 self.finalizeHiddenState()

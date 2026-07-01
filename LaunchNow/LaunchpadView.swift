@@ -217,15 +217,6 @@ struct LaunchpadView: View {
             let actualBottomPadding = config.isFullscreen ? geo.size.height * config.bottomPadding : 0
             let actualHorizontalPadding = config.isFullscreen ? geo.size.width * config.horizontalPadding : 0
             
-            let isProportionalEnabled = !config.isFullscreen
-            let scaleFactor: CGFloat = {
-                guard isProportionalEnabled, appStore.referenceContentSize.width > 0 else { return 1.0 }
-                // 仅缩小不放大：窗口小于参考尺寸时等比缩小，大于等于时保持 1.0 让内容自然填充
-                let raw = min(geo.size.width / appStore.referenceContentSize.width,
-                              geo.size.height / appStore.referenceContentSize.height)
-                return min(raw, 1.0)
-            }()
-            
             VStack {
                 // 在顶部添加动态padding（全屏模式）
                 if config.isFullscreen {
@@ -469,7 +460,6 @@ struct LaunchpadView: View {
 
             }
             .padding(.horizontal, actualHorizontalPadding)
-            .scaleEffect(scaleFactor, anchor: .center)
             .onAppear {
                 if appStore.referenceContentSize == .zero {
                     appStore.referenceContentSize = geo.size
@@ -1658,15 +1648,8 @@ extension LaunchpadView {
         currentAppHeight = appHeight
         currentIconSize = iconSize
         
-        // 计算并存储等比缩放因子（仅缩小不放大）
-        let isScaled = !config.isFullscreen
-        if isScaled, appStore.referenceContentSize.width > 0 {
-            let raw = min(geo.size.width / appStore.referenceContentSize.width,
-                          geo.size.height / appStore.referenceContentSize.height)
-            proportionalScaleFactor = min(raw, 1.0)
-        } else {
-            proportionalScaleFactor = 1.0
-        }
+        // 布局已自适应窗口大小，无需视觉缩放；坐标转换使用 1.0
+        proportionalScaleFactor = 1.0
         
         // 性能优化：清理过期的几何缓存
         let now = Date()
