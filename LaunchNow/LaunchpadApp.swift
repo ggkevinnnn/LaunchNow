@@ -54,6 +54,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var gesturePreviewActivated = false
     private var gestureSearchFocusAssigned = false
     private var isAnimatingWindowTransition = false
+    private var savedWindowFrame: NSRect? = nil
+    private var isRecentering: Bool = false
     private let showStartScale: CGFloat = 1.4
     private let previewActivationProgress: CGFloat = 0.08
     private let gestureCompletionProgressThreshold: CGFloat = 0.52
@@ -101,7 +103,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let screen = NSScreen.main else { return }
         let rect = calculateContentRect(for: screen)
         
-        window = BorderlessWindow(contentRect: rect, styleMask: [.borderless, .fullSizeContentView], backing: .buffered, defer: false)
+        // 非全屏模式下添加 .resizable 允许边缘拖拽调整大小
+        let styleMask: NSWindow.StyleMask = appStore.isFullscreenMode
+            ? [.borderless, .fullSizeContentView]
+            : [.borderless, .fullSizeContentView, .resizable]
+        window = BorderlessWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)
         window?.delegate = self
         window?.isMovable = false
         window?.level = .floating
@@ -142,13 +148,41 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         applyCornerRadius()
         applyPreviewVisual(scale: 1, alpha: 1)
         window?.alphaValue = 1
+        
+        // 设置等比缩放的参考内容尺寸（非全屏模式下的初始窗口大小）
+        if !appStore.isFullscreenMode {
+            let refSize = calculateContentRect(for: screen).size
+            appStore.referenceContentSize = refSize
+        }
     }
     
     private func finalizeShownState() {
         guard let window = window else { return }
         let screen = getCurrentActiveScreen() ?? NSScreen.main!
-        let rect = appStore.isFullscreenMode ? screen.frame : calculateContentRect(for: screen)
         resetGesturePreviewState()
+        // 恢复保存的窗口 frame，或使用默认大小
+        let rect: NSRect
+        if !appStore.isFullscreenMode, let saved = savedWindowFrame {
+            // 验证保存的 frame 仍在当前屏幕可见区域内
+            let visibleFrame = screen.visibleFrame
+            var adjustedFrame = saved
+            // 确保窗口不超出屏幕边界
+            if adjustedFrame.maxX > visibleFrame.maxX {
+                adjustedFrame.origin.x = visibleFrame.maxX - adjustedFrame.width
+            }
+            if adjustedFrame.minX < visibleFrame.minX {
+                adjustedFrame.origin.x = visibleFrame.minX
+            }
+            if adjustedFrame.maxY > visibleFrame.maxY {
+                adjustedFrame.origin.y = visibleFrame.maxY - adjustedFrame.height
+            }
+            if adjustedFrame.minY < visibleFrame.minY {
+                adjustedFrame.origin.y = visibleFrame.minY
+            }
+            rect = adjustedFrame
+        } else {
+            rect = appStore.isFullscreenMode ? screen.frame : calculateContentRect(for: screen)
+        }
         window.setFrame(rect, display: true)
         applyCornerRadius()
         applyPreviewVisual(scale: 1, alpha: 1)
@@ -175,6 +209,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func finalizeHiddenState() {
+        // 隐藏前保存窗口 frame（非全屏模式下记住用户调整的大小和位置）
+        if let window = window, !appStore.isFullscreenMode {
+            savedWindowFrame = window.frame
+        }
         resetGesturePreviewState()
         window?.orderOut(nil)
         applyPreviewVisual(scale: 1, alpha: 1)
@@ -269,6 +307,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.setFrame(isFullscreen ? screen.frame : calculateContentRect(for: screen), display: true)
         window.hasShadow = !isFullscreen
         window.contentAspectRatio = isFullscreen ? NSSize(width: 0, height: 0) : NSSize(width: 4, height: 3)
+        // 切换模式时更新 styleMask：非全屏模式下允许边缘拖拽调整大小
+        let newStyleMask: NSWindow.StyleMask = isFullscreen
+            ? [.borderless, .fullSizeContentView]
+            : [.borderless, .fullSizeContentView, .resizable]
+        window.styleMask = newStyleMask
+        // 切换模式时重置等比缩放参考尺寸
+        if !isFullscreen {
+            let refSize = calculateContentRect(for: screen).size
+            appStore.referenceContentSize = refSize
+        }
+        // 切换全屏时清除保存的 frame，切换窗口模式时重置参考尺寸
+        if isFullscreen {
+            savedWindowFrame = nil
+        }
         applyCornerRadius()
         applyPreviewVisual(scale: 1, alpha: window.alphaValue)
     }
@@ -461,7 +513,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func targetRectForCurrentScreen() -> NSRect {
         let screen = getCurrentActiveScreen() ?? NSScreen.main!
-        return appStore.isFullscreenMode ? screen.frame : calculateContentRect(for: screen)
+        if appStore.isFullscreenMode {
+            return screen.frame
+        }
+        // 非全屏模式下，如果有保存的 frame 则使用它（记住用户调整的大小）
+        if let saved = savedWindowFrame {
+            return saved
+        }
+        return calculateContentRect(for: screen)
     }
 
     private func transitionPreviewModeIfNeeded(for direction: GlobalPinchGestureDirection) {
@@ -561,6 +620,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let contentSize = sender.contentRect(forFrameRect: NSRect(origin: .zero, size: frameSize)).size
         let clamped = NSSize(width: max(contentSize.width, minSize.width), height: max(contentSize.height, minSize.height))
         return sender.frameRect(forContentRect: NSRect(origin: .zero, size: clamped)).size
+    }
+    
+    func windowDidResize(_ notification: Notification) {
+        // 非全屏模式下，缩放后重新居中窗口
+        guard !appStore.isFullscreenMode, !isRecentering, !isAnimatingWindowTransition else { return }
+        guard let window = notification.object as? NSWindow, window.isVisible else { return }
+        guard let screen = window.screen ?? getCurrentActiveScreen() else { return }
+        
+        isRecentering = true
+        defer { isRecentering = false }
+        
+        let visibleFrame = screen.visibleFrame
+        let windowFrame = window.frame
+        // 计算居中位置（注意 AppKit 坐标系 y 轴向上）
+        let centeredX = visibleFrame.midX - windowFrame.width / 2
+        let centeredY = visibleFrame.midY - windowFrame.height / 2
+        // 确保不超出屏幕边界
+        let clampedX = min(max(visibleFrame.minX, centeredX), visibleFrame.maxX - windowFrame.width)
+        let clampedY = min(max(visibleFrame.minY, centeredY), visibleFrame.maxY - windowFrame.height)
+        
+        if abs(windowFrame.origin.x - clampedX) > 1 || abs(windowFrame.origin.y - clampedY) > 1 {
+            window.setFrameOrigin(NSPoint(x: clampedX, y: clampedY))
+        }
     }
     
     func windowDidResignKey(_ notification: Notification) { autoHideIfNeeded() }

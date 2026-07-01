@@ -151,6 +151,8 @@ struct LaunchpadView: View {
     @State private var isFolderContentReady: Bool = false
     @State private var folderContentToken: UUID = UUID()
 
+    @State private var proportionalScaleFactor: CGFloat = 1.0
+    
     private var isFolderOpen: Bool { appStore.openFolder != nil }
     private var isPagingInteractionActive: Bool {
         isUserSwiping || isSwipeSettling || scrollCoordinator.renderedOffset != 0 || isPageTransitioning
@@ -214,6 +216,15 @@ struct LaunchpadView: View {
             let actualTopPadding = config.isFullscreen ? geo.size.height * config.topPadding : 0
             let actualBottomPadding = config.isFullscreen ? geo.size.height * config.bottomPadding : 0
             let actualHorizontalPadding = config.isFullscreen ? geo.size.width * config.horizontalPadding : 0
+            
+            let isProportionalEnabled = !config.isFullscreen
+            let scaleFactor: CGFloat = {
+                guard isProportionalEnabled, appStore.referenceContentSize.width > 0 else { return 1.0 }
+                // 仅缩小不放大：窗口小于参考尺寸时等比缩小，大于等于时保持 1.0 让内容自然填充
+                let raw = min(geo.size.width / appStore.referenceContentSize.width,
+                              geo.size.height / appStore.referenceContentSize.height)
+                return min(raw, 1.0)
+            }()
             
             VStack {
                 // 在顶部添加动态padding（全屏模式）
@@ -458,6 +469,17 @@ struct LaunchpadView: View {
 
             }
             .padding(.horizontal, actualHorizontalPadding)
+            .scaleEffect(scaleFactor, anchor: .center)
+            .onAppear {
+                if appStore.referenceContentSize == .zero {
+                    appStore.referenceContentSize = geo.size
+                }
+            }
+            .onChange(of: geo.size) {
+                if appStore.referenceContentSize == .zero {
+                    appStore.referenceContentSize = geo.size
+                }
+            }
         }
         .padding()
         .background {
@@ -514,6 +536,8 @@ struct LaunchpadView: View {
                 if let openFolder = appStore.openFolder {
                     Group {
                         GeometryReader { proxy in
+                            let isScaledFolder = !config.isFullscreen && appStore.referenceContentSize.width > 0
+                            let folderScale: CGFloat = isScaledFolder ? min(proxy.size.width / appStore.referenceContentSize.width, proxy.size.height / appStore.referenceContentSize.height, 1.0) : 1.0
                             let targetWidth = max(100, proxy.size.width * 0.7)
                             let targetHeight = max(100, proxy.size.height * 0.7)
                             let folderId = openFolder.id
@@ -567,7 +591,7 @@ struct LaunchpadView: View {
                                 }
                             }
                             .environmentObject(appStore)
-                            .frame(width: targetWidth, height: targetHeight)
+                            .frame(width: targetWidth * folderScale, height: targetHeight * folderScale)
                             .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
                             .id("folder_\(folderId)")
                             
@@ -836,6 +860,11 @@ struct LaunchpadView: View {
         let x = windowPoint.x - gridOriginInWindow.x
         let yFromTop = windowHeight - windowPoint.y
         let y = yFromTop - gridOriginInWindow.y
+        // 等比缩放模式下，需要将坐标除以缩放因子，转换到内容坐标系
+        let isScaled = !config.isFullscreen && proportionalScaleFactor > 0 && proportionalScaleFactor < 1.0
+        if isScaled {
+            return CGPoint(x: x / proportionalScaleFactor, y: y / proportionalScaleFactor)
+        }
         return CGPoint(x: x, y: y)
     }
 
@@ -1628,6 +1657,16 @@ extension LaunchpadView {
         currentColumnWidth = columnWidth
         currentAppHeight = appHeight
         currentIconSize = iconSize
+        
+        // 计算并存储等比缩放因子（仅缩小不放大）
+        let isScaled = !config.isFullscreen
+        if isScaled, appStore.referenceContentSize.width > 0 {
+            let raw = min(geo.size.width / appStore.referenceContentSize.width,
+                          geo.size.height / appStore.referenceContentSize.height)
+            proportionalScaleFactor = min(raw, 1.0)
+        } else {
+            proportionalScaleFactor = 1.0
+        }
         
         // 性能优化：清理过期的几何缓存
         let now = Date()

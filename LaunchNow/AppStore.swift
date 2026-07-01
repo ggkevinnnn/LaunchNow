@@ -64,6 +64,8 @@ final class AppStore: ObservableObject {
             UserDefaults.standard.set(materialOpacity, forKey: "materialOpacity")
         }
     }
+    
+    @Published var referenceContentSize: CGSize = .zero
 
     private let hiddenAppsDefaultsKey = "hiddenApplicationPaths"
     @Published var hiddenAppPaths: Set<String> = [] {
