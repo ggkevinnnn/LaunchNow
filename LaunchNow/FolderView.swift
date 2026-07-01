@@ -115,7 +115,7 @@ struct FolderView: View {
                 }
             }
         }
-        .padding()
+        .padding(.horizontal)
         .background {
             if appStore.isGlasseffectEnabled {
                 Color.clear.background(.ultraThinMaterial.opacity(appStore.materialOpacity), in: RoundedRectangle(cornerRadius: 30)).shadow(radius: 15)
