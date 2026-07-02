@@ -53,12 +53,6 @@ final class AppStore: ObservableObject {
         }
     }
     
-    @Published var isGlasseffectEnabled: Bool = true {
-        didSet {
-            UserDefaults.standard.set(isGlasseffectEnabled, forKey: "isGlasseffectEnabled")
-        }
-    }
-    
     @Published var materialOpacity: Double = 0.72 {
         didSet {
             UserDefaults.standard.set(materialOpacity, forKey: "materialOpacity")
@@ -304,7 +298,6 @@ final class AppStore: ObservableObject {
         }
         self.showAppNameBelowIcon = UserDefaults.standard.object(forKey: "showAppNameBelowIcon") as? Bool ?? true
         self.isGlobalPinchEnabled = UserDefaults.standard.bool(forKey: "isGlobalPinchEnabled")
-        self.isGlasseffectEnabled = UserDefaults.standard.bool(forKey: "isGlasseffectEnabled")
         let savedMaterialOpacity = UserDefaults.standard.object(forKey: "materialOpacity") as? Double
         if let savedMaterialOpacity, savedMaterialOpacity > 0 {
             self.materialOpacity = savedMaterialOpacity

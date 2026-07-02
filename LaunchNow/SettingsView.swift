@@ -56,12 +56,6 @@ struct SettingsView: View {
                         .toggleStyle(.switch)
                 }
                 HStack {
-                    Text(NSLocalizedString("Glasseffect", comment: "Glasseffect"))
-                    Spacer()
-                    Toggle(isOn: $appStore.isGlasseffectEnabled) {}
-                        .toggleStyle(.switch)
-                }
-                HStack {
                     Text(NSLocalizedString("MaterialOpacity", comment: "Material opacity"))
                     VStack {
                         Slider(value: $appStore.materialOpacity, in: 0.1...1.0)
