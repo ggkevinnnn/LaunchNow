@@ -96,6 +96,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         appStore.performInitialScanIfNeeded()
         appStore.startAutoRescan()
         requestShowWindow()
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleScreenParametersDidChange),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
     }
 
     private func bindGestureSettings() {
@@ -139,26 +146,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         
         // 非全屏模式下：加载上次保存的窗口尺寸；全屏模式使用屏幕尺寸
         let rect: NSRect
-        if !appStore.isFullscreenMode, let saved = savedWindowFrame {
-            let visibleFrame = screen.visibleFrame
-            var adjustedFrame = saved
-            // 确保窗口尺寸不小于最小值
-            adjustedFrame.size.width = max(adjustedFrame.width, minimumContentSize.width)
-            adjustedFrame.size.height = max(adjustedFrame.height, minimumContentSize.height * 3/4)
-            // 验证保存的 frame 仍在当前屏幕可见区域内
-            if adjustedFrame.maxX > visibleFrame.maxX {
-                adjustedFrame.origin.x = visibleFrame.maxX - adjustedFrame.width
-            }
-            if adjustedFrame.minX < visibleFrame.minX {
-                adjustedFrame.origin.x = visibleFrame.minX
-            }
-            if adjustedFrame.maxY > visibleFrame.maxY {
-                adjustedFrame.origin.y = visibleFrame.maxY - adjustedFrame.height
-            }
-            if adjustedFrame.minY < visibleFrame.minY {
-                adjustedFrame.origin.y = visibleFrame.minY
-            }
-            rect = adjustedFrame
+        if !appStore.isFullscreenMode {
+            rect = centeredRect(for: screen, savedFrame: savedWindowFrame)
         } else {
             rect = calculateContentRect(for: screen)
         }
@@ -222,26 +211,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         resetGesturePreviewState()
         // 恢复保存的窗口 frame，或使用默认大小
         let rect: NSRect
-        if !appStore.isFullscreenMode, let saved = savedWindowFrame {
-            // 验证保存的 frame 仍在当前屏幕可见区域内
-            let visibleFrame = screen.visibleFrame
-            var adjustedFrame = saved
-            // 确保窗口不超出屏幕边界
-            if adjustedFrame.maxX > visibleFrame.maxX {
-                adjustedFrame.origin.x = visibleFrame.maxX - adjustedFrame.width
-            }
-            if adjustedFrame.minX < visibleFrame.minX {
-                adjustedFrame.origin.x = visibleFrame.minX
-            }
-            if adjustedFrame.maxY > visibleFrame.maxY {
-                adjustedFrame.origin.y = visibleFrame.maxY - adjustedFrame.height
-            }
-            if adjustedFrame.minY < visibleFrame.minY {
-                adjustedFrame.origin.y = visibleFrame.minY
-            }
-            rect = adjustedFrame
+        if !appStore.isFullscreenMode {
+            rect = centeredRect(for: screen, savedFrame: savedWindowFrame)
         } else {
-            rect = appStore.isFullscreenMode ? screen.frame : calculateContentRect(for: screen)
+            rect = screen.frame
         }
         window.setFrame(rect, display: true)
         applyCornerRadius()
@@ -654,11 +627,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if appStore.isFullscreenMode {
             return screen.frame
         }
-        // 非全屏模式下，如果有保存的 frame 则使用它（记住用户调整的大小）
-        if let saved = savedWindowFrame {
-            return saved
-        }
-        return calculateContentRect(for: screen)
+        // 非全屏模式下，保留保存的窗口尺寸，在当前屏幕居中
+        return centeredRect(for: screen, savedFrame: savedWindowFrame)
     }
 
     private func transitionPreviewModeIfNeeded(for direction: GlobalPinchGestureDirection) {
@@ -748,9 +718,46 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return NSRect(x: frame.midX - width/2, y: frame.midY - height/2, width: width, height: height)
     }
     
+    /// 保留保存的窗口尺寸，在当前屏幕上居中显示
+    private func centeredRect(for screen: NSScreen, savedFrame: NSRect?) -> NSRect {
+        let visibleFrame = screen.visibleFrame
+        let frame = screen.frame
+        let width = max(savedFrame?.width ?? visibleFrame.width * 0.4, minimumContentSize.width, minimumContentSize.height * 4/3)
+        let height = savedFrame?.height ?? width * 3/4
+        return NSRect(x: frame.midX - width/2, y: frame.midY - height/2, width: width, height: height)
+    }
+    
     private func getCurrentActiveScreen() -> NSScreen? {
         let mouse = NSEvent.mouseLocation
         return NSScreen.screens.first { $0.frame.contains(mouse) }
+    }
+    
+    private func resolveScreen(for window: NSWindow) -> NSScreen? {
+        // 优先：窗口中心点实际所在的屏幕
+        let center = NSPoint(x: window.frame.midX, y: window.frame.midY)
+        if let hit = NSScreen.screens.first(where: { $0.frame.contains(center) }) {
+            return hit
+        }
+        // 其次：window.screen 仍有效
+        if let ws = window.screen, NSScreen.screens.contains(ws) {
+            return ws
+        }
+        // 兜底：主屏幕
+        return NSScreen.main
+    }
+    
+    @objc private func handleScreenParametersDidChange() {
+        guard let window = window else { return }
+        guard let screen = resolveScreen(for: window) else { return }
+        
+        if appStore.isFullscreenMode {
+            window.setFrame(screen.frame, display: true)
+            return
+        }
+        
+        let targetRect = centeredRect(for: screen, savedFrame: savedWindowFrame)
+        window.setFrame(targetRect, display: true)
+        savedWindowFrame = targetRect
     }
     
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
