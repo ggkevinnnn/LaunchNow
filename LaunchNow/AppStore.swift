@@ -1932,23 +1932,21 @@ final class AppStore: ObservableObject {
                 }
             }
 
-            DispatchQueue.main.async {
-                self.folders = foldersInOrder
-                if !combined.isEmpty {
-                    self.items = combined
-                    // 载入后对每页进行 empty 压缩到页尾
-                    self.compactItemsWithinPages()
-                    // 如果应用列表为空，从持久化数据中恢复应用列表
-                    if self.apps.isEmpty {
-                        let freeApps: [AppInfo] = combined.compactMap {
-                            if case let .app(a) = $0, !self.isAppHidden(path: a.url.path) { return a }
-                            return nil
-                        }
-                        self.apps = freeApps
+            self.folders = foldersInOrder
+            if !combined.isEmpty {
+                self.items = combined
+                // 载入后对每页进行 empty 压缩到页尾
+                self.compactItemsWithinPages()
+                // 如果应用列表为空，从持久化数据中恢复应用列表
+                if self.apps.isEmpty {
+                    let freeApps: [AppInfo] = combined.compactMap {
+                        if case let .app(a) = $0, !self.isAppHidden(path: a.url.path) { return a }
+                        return nil
                     }
+                    self.apps = freeApps
                 }
-                self.hasAppliedOrderFromStore = true
             }
+            self.hasAppliedOrderFromStore = true
             return true
         } catch {
             return false
@@ -2024,23 +2022,21 @@ final class AppStore: ObservableObject {
                 .map { LaunchpadItem.app($0) }
             combined.append(contentsOf: missingFreeApps)
 
-            DispatchQueue.main.async {
-                self.folders = foldersInOrder
-                if !combined.isEmpty {
-                    self.items = combined
-                    // 载入后对每页进行 empty 压缩到页尾
-                    self.compactItemsWithinPages()
-                    // 如果应用列表为空，从持久化数据中恢复应用列表
-                    if self.apps.isEmpty {
-                        let freeAppsAfterLoad: [AppInfo] = combined.compactMap {
-                            if case let .app(a) = $0, !self.isAppHidden(path: a.url.path) { return a }
-                            return nil
-                        }
-                        self.apps = freeAppsAfterLoad
+            self.folders = foldersInOrder
+            if !combined.isEmpty {
+                self.items = combined
+                // 载入后对每页进行 empty 压缩到页尾
+                self.compactItemsWithinPages()
+                // 如果应用列表为空，从持久化数据中恢复应用列表
+                if self.apps.isEmpty {
+                    let freeAppsAfterLoad: [AppInfo] = combined.compactMap {
+                        if case let .app(a) = $0, !self.isAppHidden(path: a.url.path) { return a }
+                        return nil
                     }
+                    self.apps = freeAppsAfterLoad
                 }
-                self.hasAppliedOrderFromStore = true
             }
+            self.hasAppliedOrderFromStore = true
         } catch {
             // ignore
         }
