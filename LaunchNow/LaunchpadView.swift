@@ -1680,7 +1680,9 @@ extension LaunchpadView {
 
             // 右边缘超出最后一页时，最多只新增一页（AppStore 内部负责去重）
             if nextPage >= storePageCount {
-                _ = appStore.createNewPageForDrag()
+                if appStore.createNewPageForDrag() {
+                    dragSourceItems = appStore.items
+                }
             }
 
             let maxPageIndex = max(0, (max(appStore.items.count, 1) - 1) / itemsPerPage)
@@ -1717,10 +1719,10 @@ extension LaunchpadView {
             let nextPage = appStore.currentPage + 1
             let nextPageStart = nextPage * itemsPerPage
             
-            // 如果拖拽到新页面，确保能够正确预测到新页面的第一个位置
             if nextPageStart >= effectiveCount {
-                // 拖拽到全新页面，返回新页面的第一个位置
-                return nextPageStart
+                let currentPageStart = appStore.currentPage * itemsPerPage
+                let currentPageEnd = min(currentPageStart + itemsPerPage, effectiveCount)
+                return max(currentPageStart, currentPageEnd - 1)
             } else {
                 return min(nextPageStart, effectiveCount - 1)
             }
